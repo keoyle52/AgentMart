@@ -254,7 +254,7 @@ agent-mart/
 
 ## 📜 License
 
-MIT © 2024 AgentMart
+MIT © 2026 AgentMart
 
 ---
 
