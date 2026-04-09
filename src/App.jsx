@@ -68,7 +68,7 @@ function App() {
         setBalance(bal);
         addLog(`Autonomous Agent key linked. Address: ${kp.publicKey().substring(0, 8)}...`, 'info');
         addLog('Agent is running in autonomous mode — no human approval required per tx.', 'default');
-      } catch (e) {
+      } catch {
         addLog('Invalid secret key or account not found on network.', 'error');
       }
     } else {
@@ -129,7 +129,9 @@ function App() {
       try {
         const updated = await fetchBalance(address);
         setBalance(updated);
-      } catch (_) {}
+      } catch {
+        // block empty, ignoring this safely
+      }
     } catch (err) {
       addLog(`Transaction failed: ${err.message}`, 'error');
     } finally {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Wallet, Key, RefreshCw, Unplug } from 'lucide-react';
 import { connectFreighter } from '../utils/stellar-mainnet';
 
