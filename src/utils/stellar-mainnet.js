@@ -31,13 +31,22 @@ export async function connectFreighter() {
   const publicKey = await requestAccess();
   if (!publicKey) throw new Error('User denied wallet access.');
 
-  const account = await server.loadAccount(publicKey);
-  const nativeBalance = account.balances.find((b) => b.asset_type === 'native');
+  let balance = 0;
+  try {
+    const account = await server.loadAccount(publicKey);
+    const nativeBalance = account.balances.find((b) => b.asset_type === 'native');
+    balance = nativeBalance ? parseFloat(nativeBalance.balance) : 0;
+  } catch (err) {
+    // If account not found (404), it's a new wallet on this network
+    if (err?.response?.status === 404) {
+      console.log('Account not found on network, defaulting to 0 XLM');
+      balance = 0;
+    } else {
+      throw err;
+    }
+  }
 
-  return {
-    publicKey,
-    balance: nativeBalance ? parseFloat(nativeBalance.balance) : 0,
-  };
+  return { publicKey, balance };
 }
 
 // Low-level payment builders

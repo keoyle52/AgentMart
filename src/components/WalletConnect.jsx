@@ -14,7 +14,10 @@ export default function WalletConnect({ onWalletConnected, address, balance, isC
       const data = await connectFreighter();
       onWalletConnected(data.publicKey, data.balance, 'freighter');
     } catch (err) {
-      setError(err.message);
+      console.error('Freighter connection error:', err);
+      // Safely extract error message
+      const msg = err?.message || (typeof err === 'string' ? err : 'Failed to connect to Freighter');
+      setError(msg);
     }
     setLoading(false);
   };
