@@ -7,7 +7,6 @@ import {
   Asset,
   Operation,
 } from '@stellar/stellar-sdk';
-import { isConnected, requestAccess, signTransaction } from '@stellar/freighter-api';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 const STELLAR_NETWORK = import.meta.env.VITE_STELLAR_NETWORK || 'PUBLIC';
@@ -22,32 +21,7 @@ const networkPassphrase =
 
 const server = new Horizon.Server(horizonUrl);
 
-// Wallet
-
-export async function connectFreighter() {
-  const connected = await isConnected();
-  if (!connected) throw new Error('Freighter extension not found. Please install it from freighter.app.');
-
-  const publicKey = await requestAccess();
-  if (!publicKey) throw new Error('User denied wallet access.');
-
-  let balance = 0;
-  try {
-    const account = await server.loadAccount(publicKey);
-    const nativeBalance = account.balances.find((b) => b.asset_type === 'native');
-    balance = nativeBalance ? parseFloat(nativeBalance.balance) : 0;
-  } catch (err) {
-    // If account not found (404), it's a new wallet on this network
-    if (err?.response?.status === 404) {
-      console.log('Account not found on network, defaulting to 0 XLM');
-      balance = 0;
-    } else {
-      throw err;
-    }
-  }
-
-  return { publicKey, balance };
-}
+// Wallet — Autonomous (secret-key) mode only
 
 // Low-level payment builders
 
@@ -69,16 +43,6 @@ async function buildPaymentTx(sourcePublicKey, destinationAddress, amountXLM) {
     .build();
 }
 
-async function payWithFreighter(sourcePublicKey, destinationAddress, amountXLM) {
-  const tx = await buildPaymentTx(sourcePublicKey, destinationAddress, amountXLM);
-  const signedXdr = await signTransaction(tx.toXDR(), {
-    network: STELLAR_NETWORK === 'PUBLIC' ? 'PUBLIC' : 'TESTNET',
-  });
-  const signedTx = TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
-  const response = await server.submitTransaction(signedTx);
-  return response.hash;
-}
-
 async function payWithAutonomousKey(secretKey, destinationAddress, amountXLM) {
   const sourceKeypair = Keypair.fromSecret(secretKey);
   const tx = await buildPaymentTx(sourceKeypair.publicKey(), destinationAddress, amountXLM);
@@ -91,16 +55,16 @@ async function payWithAutonomousKey(secretKey, destinationAddress, amountXLM) {
 /**
  * Full x402 flow:
  *  1. POST /api/agents/:id/invoke  → expect 402 with payment details
- *  2. Pay on-chain (Freighter or autonomous key)
+ *  2. Pay on-chain (autonomous key)
  *  3. POST /api/x402/verify        → server verifies tx on Stellar, returns service result
  *
  * @param {string} agentId
- * @param {'freighter'|'secret'} authMode
+ * @param {'secret'} authMode
  * @param {string} publicKey  - sender public key
  * @param {string|null} secretKey - only for autonomous mode
  * @param {function} onStep   - callback(step: {label, status}) for UI updates
  */
-export async function invokeAgentX402(agentId, authMode, publicKey, secretKey, onStep) {
+export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   // Step 1 — Invoke agent (expect 402)
   onStep({ label: 'Requesting service...', status: 'pending' });
   const invokeRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
@@ -121,14 +85,9 @@ export async function invokeAgentX402(agentId, authMode, publicKey, secretKey, o
     data: { nonce: paymentDetails.nonce, destination: paymentDetails.destination },
   });
 
-  // Step 2 — Pay on-chain
+  // Step 2 — Pay on-chain (autonomous secret-key mode)
   onStep({ label: `Signing & submitting payment (${paymentDetails.amount} XLM)...`, status: 'pending' });
-  let txHash;
-  if (authMode === 'freighter') {
-    txHash = await payWithFreighter(publicKey, paymentDetails.destination, paymentDetails.amount);
-  } else {
-    txHash = await payWithAutonomousKey(secretKey, paymentDetails.destination, paymentDetails.amount);
-  }
+  const txHash = await payWithAutonomousKey(secretKey, paymentDetails.destination, paymentDetails.amount);
   onStep({ label: `Payment submitted on-chain`, status: 'info', data: { txHash } });
 
   // Step 3 — Wait briefly for network propagation, then verify

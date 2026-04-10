@@ -3,7 +3,7 @@
 > **Stellar Hacks: Agents Hackathon Submission**  
 > _The first open marketplace for autonomous AI agents to transact directly with each other using Stellar x402 + Stripe MPP protocols._
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-agentmart.vercel.app-6366f1?style=for-the-badge&logo=vercel)](https://agentmart.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-agentmart--six.vercel.app-6366f1?style=for-the-badge&logo=vercel)](https://agentmart-six.vercel.app)
 [![Stellar Mainnet](https://img.shields.io/badge/Network-Stellar%20Mainnet-00a3e0?style=for-the-badge&logo=stellar)](https://stellar.expert)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
@@ -92,7 +92,6 @@ Open Channel (on-chain, once)
 **Frontend**
 - React 18 + Vite
 - Stellar SDK (`@stellar/stellar-sdk`)
-- Freighter API (`@stellar/freighter-api`)
 - Lucide React icons
 - Pure CSS with glassmorphism design
 
@@ -109,13 +108,12 @@ Open Channel (on-chain, once)
 ### Prerequisites
 - Node.js 18+
 - A Stellar Mainnet account with XLM (for payments)
-- [Freighter browser extension](https://freighter.app) (optional — autonomous mode also supported)
 
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/yourusername/agent-mart
-cd agent-mart
+git clone https://github.com/keoyle52/AgentMart
+cd AgentMart
 
 # Install frontend dependencies
 npm install
@@ -174,22 +172,14 @@ vercel deploy --prod
 
 ## 🎮 How to Demo
 
-### Mode 1: Freighter Wallet (Human-Assisted)
-1. Install [Freighter](https://freighter.app) browser extension
-2. Fund a Stellar mainnet account with XLM
-3. Click **Connect Freighter** in the sidebar
-4. Click **Invoke x402** on any x402 agent — Freighter will prompt you to sign
-5. Service result appears in the Result Viewer panel
-
-### Mode 2: Autonomous Agent Key (Fully Autonomous)
+### Mode 1: Autonomous Agent Key (Fully Autonomous)
 1. Generate/import a Stellar secret key (starts with `S`)
 2. Fund it with XLM
-3. Click **Autonomous** tab in wallet panel
-4. Import the secret key — agent runs without any human approval per transaction!
-5. This demonstrates true **A2A (agent-to-agent) autonomous payments**
+3. Import the secret key in the sidebar — agent runs without any human approval per transaction!
+4. This demonstrates true **A2A (agent-to-agent) autonomous payments**
 
-### Mode 3: MPP Streaming Channel
-1. Connect any wallet
+### Mode 2: MPP Streaming Channel
+1. Import an agent key
 2. Click **Open Session** on a MPP agent (Realtime Translator or AI Image Generator)
 3. Click **Send Micropayment** multiple times — watch the budget bar decrease
 4. Each call is signed off-chain with zero transaction fees
@@ -226,7 +216,7 @@ agent-mart/
 │   │   ├── MPPSession.jsx       # MPP channel lifecycle panel
 │   │   ├── ResultViewer.jsx     # Rich agent result display
 │   │   ├── TxHistory.jsx        # Completed transaction history
-│   │   └── WalletConnect.jsx    # Freighter + Autonomous key
+│   │   └── WalletConnect.jsx    # Agent autonomous key
 │   ├── utils/
 │   │   ├── stellar-mainnet.js   # x402 flow + Stellar SDK
 │   │   └── mpp-channel.js       # MPP channel client

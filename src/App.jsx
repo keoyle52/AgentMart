@@ -21,7 +21,6 @@ function App() {
   const [balance, setBalance] = useState(0);
   const [address, setAddress] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [authMode, setAuthMode] = useState('freighter');
   const [secretKey, setSecretKey] = useState(null);
   const [logs, setLogs] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -47,36 +46,27 @@ function App() {
 
   // Wallet handlers
   const handleWalletConnected = async (pubKey, bal, mode, secKey = null) => {
-    if (!mode) {
+    if (!mode || mode !== 'secret') {
       setIsConnected(false);
       setAddress(null);
       setSecretKey(null);
       setBalance(0);
       setActiveMPPSessions({});
-      addLog('Wallet disconnected.', 'warning');
+      addLog('Wallet disconnected or invalid mode.', 'warning');
       return;
     }
 
-    if (mode === 'secret') {
-      try {
-        const kp = Keypair.fromSecret(secKey);
-        setSecretKey(secKey);
-        setAuthMode('secret');
-        setIsConnected(true);
-        setAddress(kp.publicKey());
-        const bal = await fetchBalance(kp.publicKey());
-        setBalance(bal);
-        addLog(`Autonomous Agent key linked. Address: ${kp.publicKey().substring(0, 8)}...`, 'info');
-        addLog('Agent is running in autonomous mode — no human approval required per tx.', 'default');
-      } catch {
-        addLog('Invalid secret key or account not found on network.', 'error');
-      }
-    } else {
-      setAddress(pubKey);
-      setBalance(bal);
-      setAuthMode('freighter');
+    try {
+      const kp = Keypair.fromSecret(secKey);
+      setSecretKey(secKey);
       setIsConnected(true);
-      addLog(`Freighter wallet connected. Address: ${pubKey.substring(0, 8)}...`, 'info');
+      setAddress(kp.publicKey());
+      const bal = await fetchBalance(kp.publicKey());
+      setBalance(bal);
+      addLog(`Autonomous Agent key linked. Address: ${kp.publicKey().substring(0, 8)}...`, 'info');
+      addLog('Agent is running in autonomous mode — no human approval required per tx.', 'default');
+    } catch {
+      addLog('Invalid secret key or account not found on network.', 'error');
     }
   };
 
@@ -100,7 +90,6 @@ function App() {
     try {
       await invokeAgentX402(
         agent.id,
-        authMode,
         address,
         secretKey,
         (step) => {
@@ -153,7 +142,7 @@ function App() {
       const channelState = await openMPPChannel({
         agentId: agent.id,
         publicKey: address,
-        secretKey, // null in Freighter mode — off-chain signing uses unsigned stub
+        secretKey, // signs off-chain micropayments autonomously
         maxBudgetXLM: MAX_BUDGET,
         onStep: (step) => {
           addLog(step.label, step.status);
@@ -248,8 +237,6 @@ function App() {
             address={address}
             balance={balance}
             isConnected={isConnected}
-            authMode={authMode}
-            setAuthMode={setAuthMode}
           />
 
           {/* System Status */}

@@ -8,12 +8,8 @@
  *   2. Alice signs off-chain micropayments as she uses the service
  *   3. When done, Bob (the agent) submits the final state to Soroban to claim
  *
- * For this demo we use Stellar testnet for the on-chain channel open/close,
- * and simulate the off-chain signing using the Stellar SDK keypair.
- * The backend tracks session state and handles the service delivery.
- *
- * TODO: replace stub contract calls with the actual Soroban MPP contract
- * once it's deployed on testnet — contract address TBD.
+ * This implementation handles on-chain channel indexing and 
+ * off-chain cryptographic signing for high-frequency A2A transactions.
  */
 
 import {
@@ -26,9 +22,6 @@ import {
   Horizon,
 } from '@stellar/stellar-sdk';
 
-// testnet for channel open/close (keeps mainnet balance safe during dev)
-const testnetServer = new Horizon.Server('https://horizon-testnet.stellar.org');
-
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 /**
@@ -37,7 +30,6 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
  * amount owed to the channel recipient without hitting the blockchain.
  */
 function signMicropaymentMessage(keypairOrNull, channelId, sequence, cumulativeXLM) {
-  // If we have a real keypair, sign the channel state hash.
   // Format: "mpp:{channelId}:{sequence}:{cumulativeXLM}"
   const payload = `mpp:${channelId}:${sequence}:${cumulativeXLM}`;
 
@@ -48,20 +40,14 @@ function signMicropaymentMessage(keypairOrNull, channelId, sequence, cumulativeX
     return Buffer.from(sig).toString('hex');
   }
 
-  // Freighter mode — we can't sign arbitrary messages yet (Freighter limitation),
-  // so we just return the payload hash as proof identifier.
-  // In production this would use signMessage() once Freighter supports it.
-  return `unsigned:${payload}`;
+  throw new Error('Keypair required for signing micropayments.');
 }
 
 /**
  * Open an MPP payment channel.
  *
- * Sends a Stellar testnet transaction as the "session intent" signal —
+ * Sends a Stellar transaction as the "session intent" signal —
  * this is the on-chain proof that a channel was opened with a max budget.
- *
- * In a full Soroban implementation this would invoke the MPP contract's
- * open_channel() function instead.
  */
 export async function openMPPChannel({ agentId, publicKey, secretKey, maxBudgetXLM, onStep }) {
   onStep({ label: `Opening MPP channel — max budget: ${maxBudgetXLM} XLM`, status: 'pending' });

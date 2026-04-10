@@ -1,33 +1,16 @@
 import React, { useState } from 'react';
-import { Wallet, Key, RefreshCw, Unplug } from 'lucide-react';
-import { connectFreighter } from '../utils/stellar-mainnet';
+import { Wallet, Key, Unplug } from 'lucide-react';
 
-export default function WalletConnect({ onWalletConnected, address, balance, isConnected, authMode, setAuthMode }) {
+export default function WalletConnect({ onWalletConnected, address, balance, isConnected }) {
   const [secretKeyInput, setSecretKeyInput] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const handleFreighterConnect = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await connectFreighter();
-      onWalletConnected(data.publicKey, data.balance, 'freighter');
-    } catch (err) {
-      console.error('Freighter connection error:', err);
-      // Safely extract error message
-      const msg = err?.message || (typeof err === 'string' ? err : 'Failed to connect to Freighter');
-      setError(msg);
-    }
-    setLoading(false);
-  };
 
   const handleSecretKeySubmit = () => {
     if (!secretKeyInput.startsWith('S') || secretKeyInput.length !== 56) {
       setError('Invalid Stellar Secret Key — must start with S and be 56 characters.');
       return;
     }
-    onWalletConnected(null, 0, 'secret', secretKeyInput); // App.js will fetch balance
+    onWalletConnected(null, 0, 'secret', secretKeyInput);
   };
 
   const disconnect = () => {
@@ -48,44 +31,20 @@ export default function WalletConnect({ onWalletConnected, address, balance, isC
 
       {!isConnected ? (
          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
-            <div className="flex gap-2" style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem', borderRadius: '8px' }}>
-               <button 
-                 className={`btn ${authMode === 'freighter' ? 'btn-primary' : ''}`} 
-                 onClick={() => setAuthMode('freighter')}
-                 style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', background: authMode === 'freighter' ? '' : 'transparent' }}>
-                 Freighter
-               </button>
-               <button 
-                 className={`btn ${authMode === 'secret' ? 'btn-primary' : ''}`} 
-                 onClick={() => setAuthMode('secret')}
-                 style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', background: authMode === 'secret' ? '' : 'transparent' }}>
-                 Autonomous
+            <div className="flex flex-col gap-2">
+               <p style={{fontSize: '0.85rem', color: '#94a3b8', margin: 0}}>Import an agent secret key to sign transactions autonomously in the background (A2A mode).</p>
+               <input 
+                  type="password" 
+                  placeholder="S..." 
+                  className="glass-panel"
+                  value={secretKeyInput}
+                  onChange={(e) => { setSecretKeyInput(e.target.value); setError(null); }}
+                  style={{ padding: '0.5rem', width: '100%', color: 'white', outline: 'none' }} 
+               />
+               <button className="btn btn-primary w-full justify-center" onClick={handleSecretKeySubmit}>
+                  <Key size={14} style={{ marginRight: '0.4rem' }} /> Import Key
                </button>
             </div>
-            
-            {authMode === 'freighter' ? (
-                <div className="flex flex-col gap-2">
-                   <p style={{fontSize: '0.85rem', color: '#94a3b8', margin: 0}}>Signs transactions manually via browser extension (Freighter).</p>
-                   <button className="btn btn-primary w-full justify-center" onClick={handleFreighterConnect} disabled={loading}>
-                      {loading ? <RefreshCw size={16} className="spin" /> : 'Connect Freighter'}
-                   </button>
-                </div>
-            ) : (
-                <div className="flex flex-col gap-2">
-                   <p style={{fontSize: '0.85rem', color: '#94a3b8', margin: 0}}>Import an agent secret key to sign transactions autonomously in the background (A2A mode).</p>
-                   <input 
-                      type="password" 
-                      placeholder="S..." 
-                      className="glass-panel"
-                      value={secretKeyInput}
-                      onChange={(e) => { setSecretKeyInput(e.target.value); setError(null); }}
-                      style={{ padding: '0.5rem', width: '100%', color: 'white', outline: 'none' }} 
-                   />
-                   <button className="btn btn-primary w-full justify-center" onClick={handleSecretKeySubmit}>
-                      Import Key
-                   </button>
-                </div>
-            )}
             {error && <span style={{ color: '#ef4444', fontSize: '0.8rem' }}>{error}</span>}
          </div>
       ) : (
@@ -104,7 +63,6 @@ export default function WalletConnect({ onWalletConnected, address, balance, isC
             
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', background: 'rgba(255,255,255,0.04)', padding: '0.4rem 0.8rem', borderRadius: '6px', fontFamily: 'monospace' }}>
                {address ? `${address.substring(0,8)}...${address.substring(address.length-4)}` : 'S... (Hidden)'}
-               <span style={{float: 'right', color: '#8b5cf6'}}>{authMode === 'freighter' ? 'Manual' : 'Autonomous'}</span>
             </div>
          </div>
       )}

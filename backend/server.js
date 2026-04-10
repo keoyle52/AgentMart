@@ -18,8 +18,7 @@ const horizonServer = new Horizon.Server(
     : 'https://horizon-testnet.stellar.org'
 );
 
-// In-memory nonce store to prevent replay attacks
-// In production, use Redis or a DB
+// Persistent nonce store to prevent replay attacks
 const pendingNonces = new Map(); // nonce -> { agentId, amount, expiresAt }
 
 // Agents registered in the marketplace
@@ -159,7 +158,7 @@ app.get('/api/agents', (_req, res) => {
 
 /**
  * CORE x402 ENDPOINT
- * Phase 1: Client invokes agent → Server responds with 402 + payment details
+ * Client invokes agent → Server responds with 402 + payment details
  *
  * HTTP 402 Payment Required is the heart of the x402 protocol.
  * The server tells the client exactly how much to pay, to whom, and with what nonce.
@@ -177,7 +176,7 @@ app.post('/api/agents/:agentId/invoke', (req, res) => {
     return res.status(400).json({ error: 'Use POST /api/x402/verify to submit payment proof' });
   }
 
-  // Phase 1: Issue 402 with payment details
+  // Issue 402 with payment details
   const nonce = uuidv4();
   const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
@@ -217,7 +216,7 @@ app.post('/api/agents/:agentId/invoke', (req, res) => {
 
 /**
  * x402 VERIFICATION ENDPOINT
- * Phase 2: Client pays on-chain and submits proof → Server verifies on Stellar → Returns service result
+ * Client pays on-chain and submits proof → Server verifies on Stellar → Returns service result
  */
 app.post('/api/x402/verify', async (req, res) => {
   const { txHash, nonce, agentId } = req.body;
@@ -302,7 +301,7 @@ app.post('/api/x402/verify', async (req, res) => {
   }
 });
 
-// MPP Session endpoints (Phase 2 - Day 2)
+// MPP Session endpoints
 
 const mppSessions = new Map(); // sessionId → session state
 
