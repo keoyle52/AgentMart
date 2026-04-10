@@ -59,8 +59,8 @@ const AGENTS = {
           result: {
             XLM_USD: data.stellar.usd.toFixed(4),
             XLM_EUR: data.stellar.eur.toFixed(4),
-            BTC_USD: data.bitcoin.usd.toLocaleString('en-US'),
-            ETH_USD: data.ethereum.usd.toLocaleString('en-US'),
+            BTC_USD: data.bitcoin.usd,
+            ETH_USD: data.ethereum.usd,
             source: 'CoinGecko Live API',
             timestamp: new Date().toISOString(),
           },
