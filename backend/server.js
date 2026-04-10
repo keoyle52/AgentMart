@@ -29,7 +29,7 @@ const AGENTS = {
     description: 'Extracts structured data from any public URL.',
     priceXLM: '0.001',
     protocol: 'x402',
-    invoke: () => ({
+    invoke: async () => ({
       status: 'success',
       result: {
         title: 'Stellar Development Foundation',
@@ -46,17 +46,37 @@ const AGENTS = {
     description: 'Delivers real-time asset prices from aggregated sources.',
     priceXLM: '0.0005',
     protocol: 'x402',
-    invoke: () => ({
-      status: 'success',
-      result: {
-        XLM_USD: (0.095 + Math.random() * 0.01).toFixed(4),
-        XLM_EUR: (0.087 + Math.random() * 0.01).toFixed(4),
-        BTC_USD: (62000 + Math.random() * 500).toFixed(2),
-        ETH_USD: (3100 + Math.random() * 50).toFixed(2),
-        source: 'Aggregated (CoinGecko + Binance + Kraken)',
-        timestamp: new Date().toISOString(),
-      },
-    }),
+    invoke: async () => {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,stellar,ethereum&vs_currencies=usd,eur');
+        const data = await response.json();
+        
+        return {
+          status: 'success',
+          result: {
+            XLM_USD: data.stellar.usd.toFixed(4),
+            XLM_EUR: data.stellar.eur.toFixed(4),
+            BTC_USD: data.bitcoin.usd.toLocaleString('en-US'),
+            ETH_USD: data.ethereum.usd.toLocaleString('en-US'),
+            source: 'CoinGecko Live API',
+            timestamp: new Date().toISOString(),
+          },
+        };
+      } catch (err) {
+        // Fallback to mock data if API fails
+        return {
+          status: 'success',
+          result: {
+            XLM_USD: (0.095 + Math.random() * 0.01).toFixed(4),
+            XLM_EUR: (0.087 + Math.random() * 0.01).toFixed(4),
+            BTC_USD: (62000 + Math.random() * 500).toLocaleString('en-US'),
+            ETH_USD: (3100 + Math.random() * 50).toLocaleString('en-US'),
+            source: 'Aggregated (Simulation Fallback)',
+            timestamp: new Date().toISOString(),
+          },
+        };
+      }
+    },
   },
   'security-auditor': {
     id: 'security-auditor',
@@ -64,7 +84,7 @@ const AGENTS = {
     description: 'Scans Soroban smart contracts for vulnerabilities.',
     priceXLM: '0.02',
     protocol: 'x402',
-    invoke: () => ({
+    invoke: async () => ({
       status: 'success',
       result: {
         contractId: 'CAHT...XYZW',
@@ -83,7 +103,7 @@ const AGENTS = {
     description: 'Context-aware A2A language translation at machine speed.',
     priceXLM: '0.001',
     protocol: 'mpp',
-    invoke: () => ({
+    invoke: async () => ({
       status: 'success',
       result: {
         originalText: 'The x402 protocol enables machine-to-machine payments.',
@@ -100,7 +120,7 @@ const AGENTS = {
     description: 'Runs isolated code snippets and returns output.',
     priceXLM: '0.005',
     protocol: 'x402',
-    invoke: () => ({
+    invoke: async () => ({
       status: 'success',
       result: {
         language: 'python',
@@ -118,7 +138,7 @@ const AGENTS = {
     description: 'Generates images from text prompts via A2A inference.',
     priceXLM: '0.01',
     protocol: 'mpp',
-    invoke: () => ({
+    invoke: async () => ({
       status: 'success',
       result: {
         prompt: 'A futuristic agent marketplace on the Stellar blockchain',
@@ -273,7 +293,7 @@ app.post('/api/x402/verify', async (req, res) => {
     // ✅ Payment verified — consume nonce and return service result
     pendingNonces.delete(nonce);
 
-    const serviceResult = agent.invoke();
+    const serviceResult = await agent.invoke();
 
     console.log(`✅ x402 verified: agent=${agentId}, tx=${txHash}, amount=${paymentOp.amount} XLM`);
 
@@ -336,7 +356,7 @@ app.post('/api/mpp/open', (req, res) => {
   });
 });
 
-app.post('/api/mpp/invoke', (req, res) => {
+app.post('/api/mpp/invoke', async (req, res) => {
   const { sessionId, signedPaymentMessage } = req.body;
   if (!sessionId) return res.status(400).json({ error: 'Missing sessionId' });
 
@@ -367,7 +387,7 @@ app.post('/api/mpp/invoke', (req, res) => {
   session.micropayments.push(payment);
   session.spentXLM += cost;
 
-  const serviceResult = agent.invoke();
+  const serviceResult = await agent.invoke();
 
   console.log(`⚡ MPP micropayment: session=${sessionId}, seq=${payment.sequence}, cost=${cost} XLM`);
 
