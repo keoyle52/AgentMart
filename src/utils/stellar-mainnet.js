@@ -8,7 +8,8 @@ import {
   Operation,
 } from '@stellar/stellar-sdk';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const rawUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
 const STELLAR_NETWORK = import.meta.env.VITE_STELLAR_NETWORK || 'PUBLIC';
 
 const horizonUrl =
