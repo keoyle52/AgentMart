@@ -48,7 +48,10 @@ const AGENTS = {
     protocol: 'x402',
     invoke: async () => {
       try {
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,stellar,ethereum&vs_currencies=usd,eur');
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,stellar,ethereum&vs_currencies=usd,eur', {
+          headers: { 'User-Agent': 'AgentMart/1.0' }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         
         return {
@@ -63,6 +66,7 @@ const AGENTS = {
           },
         };
       } catch (err) {
+        console.error('CoinGecko API Error:', err.message);
         // Fallback to mock data if API fails
         return {
           status: 'success',
@@ -71,7 +75,7 @@ const AGENTS = {
             XLM_EUR: (0.087 + Math.random() * 0.01).toFixed(4),
             BTC_USD: (62000 + Math.random() * 500).toLocaleString('en-US'),
             ETH_USD: (3100 + Math.random() * 50).toLocaleString('en-US'),
-            source: 'Aggregated (Simulation Fallback)',
+            source: `Aggregated (Fallback: ${err.message})`,
             timestamp: new Date().toISOString(),
           },
         };
