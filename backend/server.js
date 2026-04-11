@@ -271,7 +271,9 @@ const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
 
 // State tracking (already declared at top)
 
-// 3. Official Express Middleware
+// 3. Official Express Middleware Adapter
+const officialHandler = paymentMiddlewareFromHTTPServer(httpServer, null, null, false);
+
 const x402Middleware = async (req, res, next) => {
   if (!req.path.startsWith('/api/agents/')) return next();
 
@@ -282,7 +284,7 @@ const x402Middleware = async (req, res, next) => {
     });
   }
 
-  return httpServer.handleHTTPRequest(req, res, next);
+  return officialHandler(req, res, next);
 };
 
 app.use(x402Middleware);
