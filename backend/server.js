@@ -256,14 +256,8 @@ const facilitatorClient = new HTTPFacilitatorClient({
 });
 
 // 2. Official x402 Stack Initialization (Classic Exact Scheme)
-const horizonUrl = 'https://horizon.stellar.org';
-const localFacilitator = new ExactStellarScheme({ horizonUrl });
-
-// IMPORTANT: Initialize with the facilitator in an array to avoid iterator errors
-const x402Server = new x402ResourceServer([facilitatorClient, localFacilitator]);
-
-// Register the scheme using the class instance
-x402Server.register('stellar:pubnet', localFacilitator);
+const x402Server = new x402ResourceServer([facilitatorClient]);
+x402Server.register('stellar:pubnet', new ExactStellarScheme());
 
 // 3. HTTP Server & Middleware Adapter
 const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
