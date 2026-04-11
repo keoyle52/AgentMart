@@ -22,7 +22,9 @@ const PORT = process.env.PORT || 3001;
 const facilitatorClient = new HTTPFacilitatorClient({
   url: process.env.X402_FACILITATOR_URL || 'https://channels.openzeppelin.com/x402',
   createAuthHeaders: async () => ({
-    Authorization: `Bearer ${process.env.X402_FACILITATOR_API_KEY}`,
+    headers: {
+      Authorization: `Bearer ${process.env.X402_FACILITATOR_API_KEY}`,
+    },
   }),
 });
 
