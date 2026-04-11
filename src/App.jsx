@@ -13,8 +13,8 @@ import { Keypair } from '@stellar/stellar-sdk';
 
 // MPP agents registered in the marketplace (mirrors backend AGENTS)
 const MPP_AGENTS = [
-  { id: 'translator', name: 'Realtime Translator', priceUSDC: '0.01' },
-  { id: 'image-generator', name: 'AI Image Generator', priceUSDC: '0.10' },
+  { id: 'translator', name: 'Realtime Translator', priceUSDC: '0.001' },
+  { id: 'image-generator', name: 'AI Image Generator', priceUSDC: '0.01' },
 ];
 
 function App() {
@@ -95,6 +95,7 @@ function App() {
       let bals = await fetchBalance(kp.publicKey());
       setBalances(bals);
       addLog(`Autonomous Agent key linked. Address: ${kp.publicKey().substring(0, 8)}...`, 'info');
+      addLog(`Debug: hasUSDCTrustline=${bals.hasUSDCTrustline}`, 'default');
       
       // Automatic Trustline Setup if missing
       if (!bals.hasUSDCTrustline) {

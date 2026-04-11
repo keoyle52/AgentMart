@@ -69,7 +69,7 @@ const AGENTS = {
     id: 'web-scraper',
     name: 'Web Scraper Agent',
     description: 'Extracts structured data from any public URL.',
-    priceUSDC: '0.01', 
+    priceUSDC: '0.001', 
     protocol: 'x402',
     invoke: async (input) => {
       const targetUrl = input?.url || 'https://stellar.org';
@@ -104,7 +104,7 @@ const AGENTS = {
     id: 'price-oracle',
     name: 'Price Oracle Agent',
     description: 'Delivers real-time asset prices from aggregated sources.',
-    priceUSDC: '0.005',
+    priceUSDC: '0.0001',
     protocol: 'x402',
     invoke: async () => {
       try {
@@ -146,7 +146,7 @@ const AGENTS = {
     id: 'security-auditor',
     name: 'Security Auditor Agent',
     description: 'Scans Soroban smart contracts for vulnerabilities.',
-    priceUSDC: '0.20',
+    priceUSDC: '0.01',
     protocol: 'x402',
     invoke: async () => ({
       status: 'success',
@@ -165,7 +165,7 @@ const AGENTS = {
     id: 'translator',
     name: 'Realtime Translator Agent',
     description: 'Context-aware A2A language translation at machine speed.',
-    priceUSDC: '0.01',
+    priceUSDC: '0.001',
     protocol: 'mpp',
     invoke: async () => ({
       status: 'success',
@@ -182,7 +182,7 @@ const AGENTS = {
     id: 'code-executor',
     name: 'Sandboxed Code Executor',
     description: 'Runs isolated code snippets and returns output.',
-    priceUSDC: '0.05',
+    priceUSDC: '0.005',
     protocol: 'x402',
     invoke: async () => ({
       status: 'success',
@@ -200,7 +200,7 @@ const AGENTS = {
     id: 'image-generator',
     name: 'AI Image Generator',
     description: 'Generates images from text prompts via A2A inference.',
-    priceUSDC: '0.10',
+    priceUSDC: '0.01',
     protocol: 'mpp',
     invoke: async () => ({
       status: 'success',
