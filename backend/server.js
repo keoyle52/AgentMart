@@ -259,7 +259,13 @@ const ResourceServer = new x402ResourceServer([facilitatorClient]);
 ResourceServer.register(x402NetworkIdentifier, new ExactStellarScheme());
 
 // 2. HTTP Adapter
-const httpServer = new x402HTTPResourceServer(ResourceServer, x402Routes);// 3. Official x402 Express Middleware
+const httpServer = new x402HTTPResourceServer(ResourceServer, x402Routes);
+
+// State tracking for protocol initialization
+let isX402Initialized = false;
+let x402InitError = null;
+
+// 3. Official x402 Express Middleware
 const officialX402Middleware = paymentMiddlewareFromHTTPServer(httpServer);
 
 const x402Middleware = async (req, res, next) => {
