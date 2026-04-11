@@ -3,9 +3,15 @@ import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import { Horizon, Networks } from '@stellar/stellar-sdk';
 import 'dotenv/config';
+import fetch from 'node-fetch';
 import { HTTPFacilitatorClient } from '@x402/core/server';
 import { paymentMiddlewareFromConfig } from '@x402/express';
 import { ExactStellarScheme } from '@x402/stellar/exact/server';
+
+// Global fetch polyfill for Node versions < 18
+if (!global.fetch) {
+  global.fetch = fetch;
+}
 
 const app = express();
 const STELLAR_NETWORK = process.env.STELLAR_NETWORK || 'PUBLIC';
@@ -210,8 +216,11 @@ Object.values(AGENTS).forEach(agent => {
 
 const x402Middleware = paymentMiddlewareFromConfig(
   x402Routes,
-  facilitatorClient,
-  [{ network: x402NetworkIdentifier, server: new ExactStellarScheme() }]
+  [facilitatorClient], // Pass as array
+  [{ network: x402NetworkIdentifier, server: new ExactStellarScheme() }],
+  {}, // paywallConfig (Empty)
+  null, // paywall (None)
+  false // syncFacilitatorOnStart = false (Prevent startup crash if facilitator is offline)
 );
 
 // Apply x402 protection
