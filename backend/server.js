@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Horizon, Networks } from '@stellar/stellar-sdk';
 import 'dotenv/config';
 import fetch from 'node-fetch';
-import { x402ResourceServer, x402HTTPResourceServer } from '@x402/core/server';
+import { HTTPFacilitatorClient, x402ResourceServer, x402HTTPResourceServer } from '@x402/core/server';
 import { paymentMiddlewareFromHTTPServer } from '@x402/express';
 import { ExactStellarScheme } from '@x402/stellar/exact/server';
 
@@ -238,36 +238,29 @@ Object.values(AGENTS).forEach(agent => {
   }
 });
 
-// 1. Bulletproof Hybrid Facilitator
-const ozVerifier = async (req) => {
-  const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
-  const url = (process.env.X402_FACILITATOR_URL || 'https://channels.openzeppelin.com/x402').replace(/\/$/, '');
-  try {
-    const res = await fetch(`${url}/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, 'X-API-Key': apiKey },
-      body: JSON.stringify(req)
-    });
-    return await res.json();
-  } catch (err) {
-    return { isValid: false, invalidReason: err.message };
+// 1. Authenticated Facilitator Client
+const facilitatorClient = new HTTPFacilitatorClient({
+  url: X402_FACILITATOR_URL,
+  createAuthHeaders: async () => {
+    const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
+    const authHeaders = { 
+      'Authorization': `Bearer ${apiKey}`,
+      'X-API-Key': apiKey 
+    };
+    return {
+      supported: authHeaders,
+      verify: authHeaders,
+      settle: authHeaders
+    };
   }
-};
+});
 
-const mockFacilitator = {
-  getSupported: async () => {
-    const kinds = [{ network: 'stellar:pubnet', scheme: 'exact' }];
-    const result = [...kinds];
-    result.kinds = kinds; // Hack to safely satisfy both Array and Object iterators in @x402/core
-    return result;
-  },
-  verify: ozVerifier,
-  settle: ozVerifier
-};
+// 2. Official x402 Stack Initialization (Exact Scheme for Mainnet)
+const horizonUrl = 'https://horizon.stellar.org';
+const localFacilitator = new ExactStellarScheme({ horizonUrl });
 
-// 2. Official x402 Stack Initialization
-const x402Server = new x402ResourceServer([mockFacilitator]);
-x402Server.register('stellar:pubnet', { scheme: 'exact', verify: ozVerifier });
+const x402Server = new x402ResourceServer([facilitatorClient, localFacilitator]);
+x402Server.register('stellar:pubnet', localFacilitator);
 
 // 3. HTTP Server & Middleware Adapter
 const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
