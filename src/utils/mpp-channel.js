@@ -24,6 +24,14 @@ import {
 
 const rawUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 const BACKEND_URL = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+const SETTLEMENT_ADDRESS = 'GCJV64SQP24FBBYMUK5UUK76STPG45XGLVILU3TYNYASDAFFUSET3YY7';
+const STELLAR_NETWORK = import.meta.env.VITE_STELLAR_NETWORK || 'PUBLIC';
+
+const horizonUrl = STELLAR_NETWORK === 'PUBLIC' 
+  ? 'https://horizon.stellar.org' 
+  : 'https://horizon-testnet.stellar.org';
+const server = new Horizon.Server(horizonUrl);
+const networkPassphrase = STELLAR_NETWORK === 'PUBLIC' ? Networks.PUBLIC : Networks.TESTNET;
 
 /**
  * Sign a micropayment message off-chain.
@@ -136,15 +144,49 @@ export async function sendMicropayment({ channelState, onStep }) {
 export async function closeChannel({ channelState, onStep }) {
   const { sessionId, keypair, micropaymentCount, cumulativeXLM } = channelState;
 
-  onStep({ label: 'Submitting final channel state for settlement...', status: 'pending' });
+  // Step 1: Perform On-Chain Settlement (If there's a balance to pay)
+  let settleTxHash = null;
+  if (cumulativeXLM > 0) {
+    onStep({ label: `Settling ${cumulativeXLM} XLM on-chain via Stellar Mainnet...`, status: 'pending' });
+    
+    try {
+      const sourceAccount = await server.loadAccount(keypair.publicKey());
+      const transaction = new TransactionBuilder(sourceAccount, {
+        fee: '1000', // Standard fee
+        networkPassphrase,
+      })
+        .addOperation(
+          Operation.payment({
+            destination: SETTLEMENT_ADDRESS,
+            asset: Asset.native(),
+            amount: cumulativeXLM.toString(),
+          })
+        )
+        .addMemo(Memo.text(`MPP-SETTLE:${sessionId.slice(0, 8)}`))
+        .setTimeout(30)
+        .build();
 
-  // Final signed state — this is what gets submitted to Soroban in production
-  const finalSignature = signMicropaymentMessage(keypair, sessionId, micropaymentCount, cumulativeXLM);
+      transaction.sign(keypair);
+      const pushResult = await server.submitTransaction(transaction);
+      settleTxHash = pushResult.hash;
+      
+      onStep({ label: `On-chain settlement successful: ${settleTxHash.slice(0, 12)}...`, status: 'info' });
+    } catch (err) {
+      console.error('MPP Settlement Failed:', err);
+      throw new Error(`On-chain settlement failed: ${err.message}. Please ensure the wallet has funds.`);
+    }
+  }
 
+  // Step 2: Notify backend of closure and providing proof
+  onStep({ label: 'Notifying facilitator of channel closure...', status: 'pending' });
   const res = await fetch(`${BACKEND_URL}/api/mpp/close`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId, finalSignature }),
+    body: JSON.stringify({ 
+      sessionId, 
+      finalSignature: signMicropaymentMessage(keypair, sessionId, micropaymentCount, cumulativeXLM),
+      settleTxHash
+    }),
   });
 
   const data = await res.json();

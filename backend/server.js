@@ -343,12 +343,22 @@ app.post('/api/mpp/close', (req, res) => {
 
   session.status = 'closed';
   session.closedAt = new Date().toISOString();
+  
+  const { settleTxHash } = req.body;
+  if (settleTxHash) {
+    session.settleTxHash = settleTxHash;
+    session.settlementStatus = 'pending_verification';
+    
+    // Asynchronous verification to not block the response
+    verifyMPPSettlement(sessionId, settleTxHash, session.spentXLM);
+  }
 
-  console.log(`🔒 MPP Session closed: ${sessionId}, total spent: ${session.spentXLM} XLM over ${session.micropayments.length} calls`);
+  console.log(`🔒 MPP Session closed: ${sessionId}, total spent: ${session.spentXLM} XLM. Settlement: ${settleTxHash || 'none'}`);
 
   res.json({
     status: 'closed',
     sessionId,
+    settleTxHash,
     summary: {
       totalCalls: session.micropayments.length,
       totalSpentXLM: session.spentXLM.toFixed(6),
@@ -356,9 +366,43 @@ app.post('/api/mpp/close', (req, res) => {
       openedAt: session.openedAt,
       closedAt: session.closedAt,
     },
-    message: 'Submit the final signed state to Soroban to settle the channel on-chain.',
+    message: settleTxHash 
+      ? `Settlement transaction received: ${settleTxHash}. Verifying on-chain...`
+      : 'Session closed without on-chain settlement proof.',
   });
 });
+
+/**
+ * Background worker to verify MPP settlement on Stellar
+ */
+async function verifyMPPSettlement(sessionId, txHash, expectedAmount) {
+  const session = mppSessions.get(sessionId);
+  if (!session) return;
+
+  try {
+    // Wait a few seconds for propagation if needed, but Horizon usually has it fast
+    const tx = await horizonServer.transactions().transaction(txHash).call();
+    const ops = await horizonServer.operations().forTransaction(txHash).call();
+    
+    const paymentOp = ops.records.find(
+      (op) =>
+        op.type === 'payment' &&
+        op.to === SETTLEMENT_ADDRESS &&
+        parseFloat(op.amount) >= parseFloat(expectedAmount.toFixed(7))
+    );
+
+    if (paymentOp) {
+      session.settlementStatus = 'verified';
+      console.log(`✅ MPP Settlement Verified: session=${sessionId}, tx=${txHash}, amount=${paymentOp.amount} XLM`);
+    } else {
+      session.settlementStatus = 'failed_invalid_payment';
+      console.warn(`⚠️ MPP Settlement Verification Failed: session=${sessionId}, tx=${txHash}. Payment not found or amount mismatch.`);
+    }
+  } catch (err) {
+    session.settlementStatus = 'failed_error';
+    console.error(`❌ MPP Settlement Verification Error: session=${sessionId}, err=${err.message}`);
+  }
+}
 
 app.get('/api/mpp/session/:sessionId', (req, res) => {
   const session = mppSessions.get(req.params.sessionId);
