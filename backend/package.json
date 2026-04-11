@@ -12,6 +12,7 @@
     "@stellar/stellar-sdk": "^13.1.0",
     "@x402/core": "^2.9.0",
     "@x402/express": "^2.9.0",
+    "@x402/paywall": "^2.9.0",
     "@x402/stellar": "^2.9.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

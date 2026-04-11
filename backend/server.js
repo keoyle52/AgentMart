@@ -223,16 +223,55 @@ ResourceServer.register(x402NetworkIdentifier, new ExactStellarScheme());
 // 2. HTTP Adapter
 const httpServer = new x402HTTPResourceServer(ResourceServer, x402Routes);
 
-// 3. Resilient Middleware (Disabling startup crash)
-const x402Middleware = paymentMiddlewareFromHTTPServer(
-  httpServer,
-  {},    // paywallConfig
-  null,  // paywall
-  false  // syncFacilitatorOnStart = false (KEY: prevents process-level crash)
-);
-
-// 4. Manual Background Initialization (Retry until success, never throw)
+// 3. Manual Resilient Middleware (Prevents 500 crashes during warming up)
 let isX402Initialized = false;
+
+const x402Middleware = async (req, res, next) => {
+  // If protocol isn't ready yet, return a friendly warming up status instead of crashing
+  if (!isX402Initialized) {
+    return res.status(503).json({ 
+      error: 'x402 protocol is warming up', 
+      message: 'Synchronizing with Stellar network... Please try again in 5-10 seconds.' 
+    });
+  }
+
+  // Create standard-compliant adapter for @x402/core
+  const adapter = {
+    getHeaders: () => req.headers,
+    getHeader: (name) => req.header(name),
+    getAcceptHeader: () => req.header('accept') || '',
+    getUserAgent: () => req.header('user-agent') || '',
+    getMethod: () => req.method,
+    getPath: () => req.path,
+    getUrl: () => req.originalUrl || req.url,
+  };
+
+  try {
+    const result = await httpServer.processHTTPRequest({ adapter });
+
+    if (result.type === 'payment-error') {
+      const { status, headers, body } = result.response;
+      return res.status(status).set(headers).send(body);
+    }
+
+    if (result.type === 'payment-verified') {
+      // Add payment info to request for the next handler
+      req.x402 = {
+        payload: result.paymentPayload,
+        requirements: result.paymentRequirements
+      };
+      return next();
+    }
+
+    // No payment required for this route
+    next();
+  } catch (err) {
+    console.error('x402 Middleware Error:', err);
+    res.status(500).json({ error: 'Internal x402 error: ' + err.message });
+  }
+};
+
+// 4. Background Initialization (Failsafe)
 async function initializeX402() {
   console.log('🔄 Initializing x402 protocol in background...');
   try {
@@ -240,8 +279,8 @@ async function initializeX402() {
     isX402Initialized = true;
     console.log('✅ x402 Protocol synchronized and ready.');
   } catch (err) {
-    console.error(`❌ x402 Initialization failed (retrying in 30s): ${err.message}`);
-    setTimeout(initializeX402, 30000); // Retry after 30 seconds
+    console.error(`❌ x402 Initialization failed (retrying in 15s): ${err.message}`);
+    setTimeout(initializeX402, 15000);
   }
 }
 initializeX402();
