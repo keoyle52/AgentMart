@@ -144,10 +144,11 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   onStep({ label: `Verifying payment proof...`, status: 'pending' });
   
   // Official x402 v2 Proof Format: base64(JSON({ x402Version, accepted, proof }))
+  accepted.network = 'stellar:pubnet';
   const paymentPayload = {
     x402Version: 2,
     accepted: accepted,
-    proof: { transactionHash: txHash }
+    proof: { transaction: txHash }
   };
   const signature = btoa(JSON.stringify(paymentPayload));
 
