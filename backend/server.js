@@ -440,7 +440,7 @@ app.post('/api/mpp/invoke', async (req, res) => {
     protocol: 'mpp',
     sessionId,
     micropayment: payment,
-    remainingBudgetXLM: (session.maxBudgetXLM - session.spentXLM).toFixed(6),
+    remainingBudgetXLM: (session.maxBudgetUSDC - session.spentUSDC).toFixed(6),
     ...serviceResult,
   });
 });
@@ -461,10 +461,10 @@ app.post('/api/mpp/close', (req, res) => {
     session.settlementStatus = 'pending_verification';
     
     // Asynchronous verification to not block the response
-    verifyMPPSettlement(sessionId, settleTxHash, session.spentXLM);
+    verifyMPPSettlement(sessionId, settleTxHash, session.spentUSDC);
   }
 
-  console.log(`🔒 MPP Session closed: ${sessionId}, total spent: ${session.spentXLM} XLM. Settlement: ${settleTxHash || 'none'}`);
+  console.log(`🔒 MPP Session closed: ${sessionId}, total spent: ${session.spentUSDC} USDC. Settlement: ${settleTxHash || 'none'}`);
 
   res.json({
     status: 'closed',
@@ -500,6 +500,7 @@ async function verifyMPPSettlement(sessionId, txHash, expectedAmount) {
         op.type === 'payment' &&
         op.to === SETTLEMENT_ADDRESS &&
         op.asset_code === 'USDC' &&
+        op.asset_issuer === 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' &&
         parseFloat(op.amount) >= parseFloat(expectedAmount.toFixed(7))
     );
 
