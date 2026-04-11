@@ -23,8 +23,8 @@ const defaultFacilitatorUrl = STELLAR_NETWORK === 'PUBLIC'
   ? 'https://channels.openzeppelin.com/x402'
   : 'https://channels.openzeppelin.com/testnet/x402';
 
-const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl;
-const X402_FACILITATOR_API_KEY = process.env.X402_FACILITATOR_API_KEY;
+const X402_FACILITATOR_URL = (process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl).replace(/\/$/, '');
+const X402_FACILITATOR_API_KEY = (process.env.X402_FACILITATOR_API_KEY || '').trim();
 
 console.log(`[Config] Network: ${STELLAR_NETWORK}`);
 console.log(`[Config] Facilitator: ${X402_FACILITATOR_URL}`);
@@ -38,8 +38,11 @@ const facilitatorClient = new HTTPFacilitatorClient({
     if (!apiKey) {
       throw new Error('401 Unauthorized: X402_FACILITATOR_API_KEY is missing.');
     }
-    // The facilitator client expects endpoint-specific auth headers
-    const authHeader = { Authorization: `Bearer ${apiKey}` };
+    // Some facilitators use Bearer, some use X-API-Key. Providing both for resilience.
+    const authHeader = { 
+      'Authorization': `Bearer ${apiKey}`,
+      'X-API-Key': apiKey 
+    };
     return {
       supported: authHeader,
       verify: authHeader,
@@ -309,7 +312,8 @@ async function initializeX402() {
     isX402Initialized = false;
     
     if (err.message.includes('401')) {
-      console.error(`❌ x402 Auth Failed (401): The API Key is unauthorized for ${X402_FACILITATOR_URL}. Please ensure you generated the key for the correct network.`);
+      console.error(`❌ x402 Auth Failed (401): The key "${apiKeyPrefix}..." is unauthorized for ${X402_FACILITATOR_URL}.`);
+      console.error('👉 Please verify you have copied the full key and are using the correct network (Mainnet vs Testnet).');
     } else {
       console.error(`❌ x402 Initialization failed (retrying in 10s): ${err.message}`);
     }
