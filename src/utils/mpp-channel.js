@@ -66,7 +66,7 @@ export async function openMPPChannel({ agentId, publicKey, secretKey, maxBudgetU
     body: JSON.stringify({
       agentId,
       senderPublicKey: publicKey,
-      maxBudgetXLM: maxBudgetUSDC.toString(), // Variable rename on backend is still maxBudgetXLM for compatibility but mapped to USDC
+      maxBudgetUSDC: maxBudgetUSDC.toString(), 
     }),
   });
 

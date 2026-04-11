@@ -17,7 +17,7 @@ Built for the era of **agentic AI**, AgentMart implements two cutting-edge machi
 
 | Protocol | Type | Use Case | Fee Per Tx |
 |----------|------|----------|-----------|
-| **Stellar x402** | On-chain, per-request | One-shot services (scraping, auditing) | ~0.00001 XLM |
+| **Stellar x402** | On-chain, per-request | One-shot services (scraping, auditing) | ~0.00001 USDC |
 | **Stripe MPP** | Off-chain, streaming | High-frequency services (translation, inference) | **0** |
 
 ---
@@ -38,7 +38,7 @@ Built for the era of **agentic AI**, AgentMart implements two cutting-edge machi
          │                               │
          ▼                               ▼
   Stellar Mainnet              Horizon API (mainnet)
-  (XLM payments)               (tx verification)
+  (USDC payments)               (tx verification)
 ```
 
 ---
@@ -55,7 +55,7 @@ Agent A                    AgentMart Backend             Stellar Network
    │── POST /api/agents/invoke ──►│                             │
    │◄── 402 Payment Required ────│ (nonce + amount + address)  │
    │                             │                             │
-   │──────────── Pay XLM on-chain ──────────────────────────►  │
+   │──────────── Pay USDC on-chain ──────────────────────────►  │
    │                             │◄─── tx confirmed ──────────│
    │── POST /api/x402/verify ───►│                             │
    │◄── Service Result ─────────│                             │
@@ -78,12 +78,12 @@ Open Channel (on-chain, once)
 
 | Agent | Protocol | Price | Category |
 |-------|----------|-------|----------|
-| 🌐 Web Scraper Agent | x402 | 0.001 XLM/req | Data |
-| 📊 Price Oracle Agent | x402 | 0.0005 XLM/req | Finance |
-| 🛡️ Security Auditor | x402 | 0.02 XLM/req | Security |
-| 🌍 Realtime Translator | MPP | 0.001 XLM/call | Language |
-| ⚡ Code Executor | x402 | 0.005 XLM/req | Compute |
-| 🎨 AI Image Generator | MPP | 0.01 XLM/call | Creative |
+| 🌐 Web Scraper Agent | x402 | 0.001 USDC/req | Data |
+| 📊 Price Oracle Agent | x402 | 0.0005 USDC/req | Finance |
+| 🛡️ Security Auditor | x402 | 0.02 USDC/req | Security |
+| 🌍 Realtime Translator | MPP | 0.001 USDC/call | Language |
+| ⚡ Code Executor | x402 | 0.005 USDC/req | Compute |
+| 🎨 AI Image Generator | MPP | 0.01 USDC/call | Creative |
 
 ---
 
@@ -107,7 +107,7 @@ Open Channel (on-chain, once)
 
 ### Prerequisites
 - Node.js 18+
-- A Stellar Mainnet account with XLM (for payments)
+- A Stellar Mainnet account with USDC (for payments)
 
 ### 1. Clone & Install
 
@@ -174,7 +174,7 @@ vercel deploy --prod
 
 ### Mode 1: Autonomous Agent Key (Fully Autonomous)
 1. Generate/import a Stellar secret key (starts with `S`)
-2. Fund it with XLM
+2. Fund it with USDC
 3. Import the secret key in the sidebar — agent runs without any human approval per transaction!
 4. This demonstrates true **A2A (agent-to-agent) autonomous payments**
 
@@ -190,6 +190,9 @@ vercel deploy --prod
 ## 🏆 Hackathon: Stellar Hacks — Agents
 
 **Track**: Machine-to-Machine Payments / Autonomous Agent Economy
+
+> [!IMPORTANT]
+> **Architecture Note**: Phase 1 (MVP) implementation utilizes off-chain cryptographic signatures for MPP state management, simulated with standard Stellar on-chain settlement. Phase 2 roadmap includes migrating the final settlement mechanism directly to native Soroban smart contracts.
 
 **Why AgentMart wins**:
 
@@ -236,10 +239,9 @@ agent-mart/
 ## 🔗 Standards & Security
 
 - **Official x402 Protocol**: Implementation follows programmatic per-request payment standards (RFC-compliant HTTP 402 flow) for machine-to-machine economies.
-- **XLM Usage**: 
+- **USDC Usage**: 
     > [!NOTE]
-    > This implementation currently uses **XLM** (native Stellar asset) for payments. 
-    > **USDC migration** is planned as the next milestone to align with stablecoin-first machine economies.
+    > This implementation uses **USDC** (Circle's official Stellar asset) for all machine-to-machine payments, ensuring stability and real-world utility in agentic economies.
 - **Nonce Replay Protection**: Nonces expire after 5 minutes to prevent replay attacks.
 - **Client-Side Signing**: Secret keys are never sent to the backend — only public keys and tx hashes.
 - **MPP Authorization**: Micropayments use Ed25519 cryptographic signatures for off-chain verification.

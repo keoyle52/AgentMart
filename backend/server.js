@@ -19,7 +19,7 @@ const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || 'GCJV64SQP24FBBYMUK
 const PORT = process.env.PORT || 3001;
 
 // Intelligent Facilitator URL selection
-const defaultFacilitatorUrl = 'https://channels.openzeppelin.com/x402';
+const defaultFacilitatorUrl = ''; // Purely Horizon-based verification enabled
 
 const X402_FACILITATOR_URL = (process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl).replace(/\/$/, '');
 const X402_FACILITATOR_API_KEY = (process.env.X402_FACILITATOR_API_KEY || '').trim();
@@ -364,9 +364,9 @@ app.post('/api/x402/verify', (req, res) => {
 const mppSessions = new Map(); // sessionId → session state
 
 app.post('/api/mpp/open', (req, res) => {
-  const { agentId, senderPublicKey, maxBudgetXLM, openTxHash } = req.body;
-  if (!agentId || !senderPublicKey || !maxBudgetXLM) {
-    return res.status(400).json({ error: 'Missing: agentId, senderPublicKey, maxBudgetXLM' });
+  const { agentId, senderPublicKey, maxBudgetUSDC, openTxHash } = req.body;
+  if (!agentId || !senderPublicKey || !maxBudgetUSDC) {
+    return res.status(400).json({ error: 'Missing: agentId, senderPublicKey, maxBudgetUSDC' });
   }
 
   const sessionId = uuidv4();
@@ -374,7 +374,7 @@ app.post('/api/mpp/open', (req, res) => {
     sessionId,
     agentId,
     senderPublicKey,
-    maxBudgetUSDC: parseFloat(maxBudgetXLM),
+    maxBudgetUSDC: parseFloat(maxBudgetUSDC),
     spentUSDC: 0,
     micropayments: [],
     openedAt: new Date().toISOString(),
@@ -389,7 +389,7 @@ app.post('/api/mpp/open', (req, res) => {
     sessionId,
     status: 'open',
     agentId,
-    maxBudgetXLM,
+    maxBudgetUSDC,
     message: 'MPP payment channel opened. Use sessionId for subsequent requests.',
   });
 });

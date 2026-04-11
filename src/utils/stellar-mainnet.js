@@ -30,7 +30,7 @@ const USDC_ASSET = new Asset(
 
 // Low-level payment builders
 
-async function buildPaymentTx(sourcePublicKey, destinationAddress, amountUSDC) {
+async function buildPaymentTx(sourcePublicKey, destinationAddress, amountUSDC, memoText) {
   const account = await server.loadAccount(sourcePublicKey);
   return new TransactionBuilder(account, {
     fee: await server.fetchBaseFee(),
@@ -43,14 +43,14 @@ async function buildPaymentTx(sourcePublicKey, destinationAddress, amountUSDC) {
         amount: amountUSDC.toString(),
       })
     )
-    .addMemo(Memo.text('x402:agentmart'))
+    .addMemo(Memo.text(memoText || 'x402:agentmart'))
     .setTimeout(30)
     .build();
 }
 
-async function payWithAutonomousKey(secretKey, destinationAddress, amountUSDC) {
+async function payWithAutonomousKey(secretKey, destinationAddress, amountUSDC, memoText) {
   const sourceKeypair = Keypair.fromSecret(secretKey);
-  const tx = await buildPaymentTx(sourceKeypair.publicKey(), destinationAddress, amountUSDC);
+  const tx = await buildPaymentTx(sourceKeypair.publicKey(), destinationAddress, amountUSDC, memoText);
   tx.sign(sourceKeypair);
   
   try {
@@ -134,12 +134,16 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
 
   // Step 2 — Pay on-chain
   onStep({ label: `Submitting payment to ${accepted.payTo.substring(0, 8)}...`, status: 'pending' });
-  const txHash = await payWithAutonomousKey(secretKey, accepted.payTo, priceValue);
+  
+  // Extract payment ID for memo or generate fallback
+  const paymentId = accepted.id || accepted.paymentId || Math.random().toString(36).slice(2, 10);
+  
+  const txHash = await payWithAutonomousKey(secretKey, accepted.payTo, priceValue, paymentId);
   onStep({ label: `Payment submitted: ${txHash.substring(0, 12)}...`, status: 'info', data: { txHash } });
 
   // Step 3 — Submit official proof
-  onStep({ label: `Waiting for facilitator to index (8s)...`, status: 'pending' });
-  await new Promise(r => setTimeout(r, 8000));
+  onStep({ label: `Waiting for facilitator to index (15s)...`, status: 'pending' });
+  await new Promise(r => setTimeout(r, 15000));
   
   onStep({ label: `Verifying payment proof...`, status: 'pending' });
   
