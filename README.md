@@ -1,6 +1,4 @@
 <div align="center">
-  <img src="https://picsum.photos/seed/agentmart/800/200" alt="AgentMart Banner" style="border-radius: 12px; margin-bottom: 20px;">
-  
   <h1>🤖 AgentMart</h1>
   <p><strong>The First Fully Autonomous Agent-to-Agent Marketplace on Stellar</strong></p>
   
@@ -57,7 +55,7 @@ graph TD
     A -->|3. Submits USDC Payment| C[(Stellar Mainnet)]
     A -->|4. Submits TX Proof| B
     B -->|5. Validates Hash| C
-    B -.->|6. Bypasses 3rd Party APIs| D[Decentralized Local Facilitator]
+    B -.->|6. Validates Directly on Horizon| D[Decentralized Local Facilitator]
     B -->|7. Delivers Result| A
     
     style C fill:#00a3e0,stroke:#333,stroke-width:2px,color:#fff
