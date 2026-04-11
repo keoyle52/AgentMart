@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Horizon, Networks } from '@stellar/stellar-sdk';
 import 'dotenv/config';
 import fetch from 'node-fetch';
-import { HTTPFacilitatorClient, x402ResourceServer, x402HTTPResourceServer } from '@x402/core/server';
+import { x402ResourceServer, x402HTTPResourceServer } from '@x402/core/server';
 import { paymentMiddlewareFromHTTPServer } from '@x402/express';
 import { ExactStellarScheme } from '@x402/stellar/exact/server';
 
@@ -238,42 +238,32 @@ Object.values(AGENTS).forEach(agent => {
   }
 });
 
-// 1. Authenticated Facilitator Client
-// Standard x402 v2 expects individual headers for each operation type
-// Standard x402 v2 resilient auth headers
-const baseFacilitatorClient = new HTTPFacilitatorClient({
-  url: X402_FACILITATOR_URL,
-  createAuthHeaders: async () => {
-    const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
-    const authHeaders = { 'Authorization': `Bearer ${apiKey}`, 'X-API-Key': apiKey };
-    return { supported: authHeaders, verify: authHeaders, settle: authHeaders };
-  }
-});
-
-const facilitatorClient = {
-  getSupported: async () => {
-    return {
-      kinds: [{ network: 'stellar:pubnet', scheme: 'exact' }]
-    };
-  },
+// 1. Custom Soroban Scheme using OpenZeppelin Relayer
+const ozSorobanScheme = {
+  scheme: 'exact',
   verify: async (req) => {
-    return await baseFacilitatorClient.verify(req);
-  },
-  settle: async (req) => {
-    if (baseFacilitatorClient.settle) {
-      return await baseFacilitatorClient.settle(req);
+    const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
+    const url = (process.env.X402_FACILITATOR_URL || 'https://channels.openzeppelin.com/x402').replace(/\/$/, '');
+    try {
+      const res = await fetch(`${url}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, 'X-API-Key': apiKey },
+        body: JSON.stringify(req)
+      });
+      return await res.json();
+    } catch (err) {
+      return { isValid: false, invalidReason: err.message };
     }
   }
 };
 
-// 2. Official x402 Stack Initialization (Managed Relay)
-const horizonUrl = 'https://horizon.stellar.org';
-const localFacilitator = new ExactStellarScheme({ horizonUrl });
+// 2. Initialize x402 Server WITHOUT any facilitators (Pass empty array to avoid init crashes)
+const x402Server = new x402ResourceServer([]); 
 
-const x402Server = new x402ResourceServer([facilitatorClient, localFacilitator]);
-x402Server.register(activeNetworkId, localFacilitator);
+// 3. Register our custom scheme directly to bypass init checks
+x402Server.register('stellar:pubnet', ozSorobanScheme);
 
-// 3. Official Express Middleware Adapter
+// 4. Create HTTP Server
 const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
 const officialHandler = paymentMiddlewareFromHTTPServer(httpServer, null, null, false);
 
