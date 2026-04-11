@@ -284,7 +284,21 @@ const x402Middleware = async (req, res, next) => {
     });
   }
 
-  // 3. Hand off to the official @x402/express middleware
+  // 3. Diagnostic Logging: Intercept responses to see facilitator errors
+  const originalSend = res.send;
+  res.send = function (body) {
+    if (res.statusCode >= 400 && req.headers['payment-signature']) {
+      console.warn(`[x402 Debug] Verification failed: status=${res.statusCode}, path=${req.path}`);
+      console.warn(`[x402 Debug] Payload: ${body}`);
+      try {
+        const routeKey = `POST ${req.path}`;
+        console.warn(`[x402 Debug] Configured Route: ${JSON.stringify(x402Routes[routeKey])}`);
+      } catch (e) {}
+    }
+    return originalSend.apply(res, arguments);
+  };
+
+  // 4. Hand off to the official @x402/express middleware
   return officialX402Middleware(req, res, next);
 };
 
