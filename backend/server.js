@@ -241,7 +241,8 @@ Object.values(AGENTS).forEach(agent => {
 // 1. Local Decentralized Facilitator (True On-Chain Verification & Settlement)
 class DecentralizedLocalFacilitator {
   async verify(paymentPayload, paymentRequirements) {
-    if (!paymentPayload.payload?.transaction) {
+    const txData = paymentPayload.proof?.transactionHash || paymentPayload.payload?.transactionHash || paymentPayload.payload?.transaction || paymentPayload.transactionHash;
+    if (!txData) {
       return { isValid: false, invalidReason: 'No transaction data found in payload' };
     }
     return { isValid: true, payer: 'autonomous-agent' };
@@ -249,7 +250,7 @@ class DecentralizedLocalFacilitator {
 
   async settle(paymentPayload, paymentRequirements) {
     try {
-      const txData = paymentPayload.payload?.transaction;
+      const txData = paymentPayload.proof?.transactionHash || paymentPayload.payload?.transactionHash || paymentPayload.payload?.transaction || paymentPayload.transactionHash;
       console.log(`[Stellar Facilitator] Attempting to settle payment...`);
       
       // Check if it's an XDR envelope (standard x402 flow for Stellar)
