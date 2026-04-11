@@ -3,25 +3,30 @@ import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import { Horizon, Networks } from '@stellar/stellar-sdk';
 import 'dotenv/config';
+import { HTTPFacilitatorClient } from '@x402/core/server';
+import { paymentMiddlewareFromConfig } from '@x402/express';
+import { ExactStellarScheme } from '@x402/stellar/exact/server';
 
 
 
-const app = express();
-const PORT = process.env.PORT || 3001;
+// Official x402 Protocol Stack Configuration
+const facilitatorClient = new HTTPFacilitatorClient({
+  url: process.env.X402_FACILITATOR_URL || 'https://channels.openzeppelin.com/x402',
+  createAuthHeaders: async () => ({
+    Authorization: `Bearer ${process.env.X402_FACILITATOR_API_KEY}`,
+  }),
+});
 
-const SETTLEMENT_ADDRESS =
-  process.env.SETTLEMENT_ADDRESS ||
-  'GCJV64SQP24FBBYMUK5UUK76STPG45XGLVILU3TYNYASDAFFUSET3YY7';
+const x402NetworkIdentifier = STELLAR_NETWORK === 'PUBLIC' ? 'stellar:pubnet' : 'stellar:testnet';
 
-const STELLAR_NETWORK = process.env.STELLAR_NETWORK || 'PUBLIC';
 const horizonServer = new Horizon.Server(
   STELLAR_NETWORK === 'PUBLIC'
     ? 'https://horizon.stellar.org'
     : 'https://horizon-testnet.stellar.org'
 );
 
-// Persistent nonce store to prevent replay attacks
-const pendingNonces = new Map(); // nonce -> { agentId, amount, expiresAt }
+// Persistent nonce store (Used for legacy fallback or external tracking if needed)
+const pendingNonces = new Map();
 
 // Agents registered in the marketplace
 const AGENTS = {
@@ -184,165 +189,66 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Routes
-
-// Health check
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', network: STELLAR_NETWORK, agents: Object.keys(AGENTS).length });
+// x402 Middleware Configuration
+const x402Routes = {};
+Object.values(AGENTS).forEach(agent => {
+  if (agent.protocol === 'x402') {
+    x402Routes[`POST /api/agents/${agent.id}/invoke`] = {
+      accepts: [{
+        scheme: 'exact',
+        price: agent.priceXLM,
+        network: x402NetworkIdentifier,
+        payTo: SETTLEMENT_ADDRESS,
+      }],
+      description: agent.description,
+    };
+  }
 });
 
-// List all agents
-app.get('/api/agents', (_req, res) => {
-  res.json(
-    Object.values(AGENTS).map(({ id, name, description, priceXLM, protocol }) => ({
-      id, name, description, priceXLM, protocol,
-    }))
-  );
-});
+const x402Middleware = paymentMiddlewareFromConfig(
+  x402Routes,
+  facilitatorClient,
+  [{ network: x402NetworkIdentifier, server: new ExactStellarScheme() }]
+);
 
-/**
- * CORE x402 ENDPOINT
- * Client invokes agent → Server responds with 402 + payment details
- *
- * HTTP 402 Payment Required is the heart of the x402 protocol.
- * The server tells the client exactly how much to pay, to whom, and with what nonce.
- */
-app.post('/api/agents/:agentId/invoke', (req, res) => {
-  const agent = AGENTS[req.params.agentId];
-  if (!agent) {
-    return res.status(404).json({ error: 'Agent not found' });
-  }
+// Apply x402 protection
+app.use(x402Middleware);
 
-  // Check if request already has a payment proof header (Phase 2)
-  const paymentProof = req.headers['x-payment-proof'];
-  if (paymentProof) {
-    // Redirect to verification (handled by /verify endpoint)
-    return res.status(400).json({ error: 'Use POST /api/x402/verify to submit payment proof' });
-  }
-
-  // Issue 402 with payment details
-  const nonce = uuidv4();
-  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
-
-  pendingNonces.set(nonce, {
-    agentId: agent.id,
-    amount: agent.priceXLM,
-    expiresAt,
-  });
-
-  // Clean up expired nonces
-  for (const [k, v] of pendingNonces.entries()) {
-    if (v.expiresAt < Date.now()) pendingNonces.delete(k);
-  }
-
-  const paymentDetails = {
-    version: '1.0',
-    protocol: 'x402',
-    network: STELLAR_NETWORK === 'PUBLIC' ? 'stellar:mainnet' : 'stellar:testnet',
-    amount: agent.priceXLM,
-    asset: 'XLM',
-    destination: SETTLEMENT_ADDRESS,
-    nonce,
-    expiresAt: new Date(expiresAt).toISOString(),
-    agentId: agent.id,
-  };
-
-  // RFC-compliant: 402 with payment details in headers AND body
-  res.status(402)
-    .set('X-Payment-Details', JSON.stringify(paymentDetails))
-    .set('X-Payment-Version', '1.0')
-    .json({
-      error: 'Payment Required',
-      message: `This agent requires ${agent.priceXLM} XLM per request.`,
-      paymentDetails,
-    });
-});
-
-/**
- * x402 VERIFICATION ENDPOINT
- * Client pays on-chain and submits proof → Server verifies on Stellar → Returns service result
- */
-app.post('/api/x402/verify', async (req, res) => {
-  const { txHash, nonce, agentId } = req.body;
-
-  if (!txHash || !nonce || !agentId) {
-    return res.status(400).json({ error: 'Missing required fields: txHash, nonce, agentId' });
-  }
-
-  // Validate nonce
-  const pending = pendingNonces.get(nonce);
-  if (!pending) {
-    return res.status(400).json({ error: 'Invalid or expired nonce. Please invoke the agent again.' });
-  }
-  if (pending.agentId !== agentId) {
-    return res.status(400).json({ error: 'Nonce agent mismatch.' });
-  }
-  if (pending.expiresAt < Date.now()) {
-    pendingNonces.delete(nonce);
-    return res.status(400).json({ error: 'Payment nonce expired. Please invoke the agent again.' });
-  }
-
+// Refactored Agent Invocation Gate (No longer needs manual verification logic)
+app.post('/api/agents/:agentId/invoke', async (req, res) => {
+  const { agentId } = req.params;
   const agent = AGENTS[agentId];
+  
   if (!agent) {
     return res.status(404).json({ error: 'Agent not found' });
   }
 
   try {
-    // Verify the transaction on Stellar
-    const tx = await horizonServer.transactions().transaction(txHash).call();
-
-    // Check it's not expired (submitted within last 10 minutes)
-    const txTime = new Date(tx.created_at).getTime();
-    if (Date.now() - txTime > 10 * 60 * 1000) {
-      return res.status(400).json({ error: 'Transaction is too old. Please submit a fresh payment.' });
-    }
-
-    // Parse operations to verify payment amount + destination
-    const ops = await horizonServer.operations().forTransaction(txHash).call();
-    const paymentOp = ops.records.find(
-      (op) =>
-        op.type === 'payment' &&
-        op.to === SETTLEMENT_ADDRESS &&
-        op.asset_type === 'native' &&
-        parseFloat(op.amount) >= parseFloat(pending.amount)
-    );
-
-    if (!paymentOp) {
-      return res.status(402).json({
-        error: 'Payment verification failed',
-        message: `Could not find a valid payment of ${pending.amount} XLM to ${SETTLEMENT_ADDRESS} in transaction ${txHash}.`,
-      });
-    }
-
-    // ✅ Payment verified — consume nonce and return service result
-    pendingNonces.delete(nonce);
-
     const serviceResult = await agent.invoke(req.body);
-
-    console.log(`✅ x402 verified: agent=${agentId}, tx=${txHash}, amount=${paymentOp.amount} XLM`);
-
-    return res.json({
-      status: 'verified',
+    console.log(`✅ x402 Service Delivered: agent=${agentId}`);
+    
+    // Official x402 spec returns results directly if payment is verified by middleware
+    res.json({
+      status: 'success',
       protocol: 'x402',
-      txHash,
-      amountPaid: paymentOp.amount + ' XLM',
       agentId,
       agentName: agent.name,
-      explorerUrl: `https://stellar.expert/explorer/${STELLAR_NETWORK === 'PUBLIC' ? 'public' : 'testnet'}/tx/${txHash}`,
-      ...serviceResult,
+      ...serviceResult
     });
   } catch (err) {
-    console.error('Verification error:', err.message);
-
-    // If tx not found on network yet, tell client to retry
-    if (err?.response?.status === 404) {
-      return res.status(404).json({
-        error: 'Transaction not yet found on the network. Please retry in a few seconds.',
-      });
-    }
-
-    return res.status(500).json({ error: 'Server error during verification: ' + err.message });
+    res.status(500).json({ error: 'Agent execution failed: ' + err.message });
   }
+});
+
+/**
+ * x402 VERIFICATION ENDPOINT (DEPRECATED - Middleware handles this now)
+ * We keep a no-op endpoint for backward compatibility during migration if needed
+ */
+app.post('/api/x402/verify', (req, res) => {
+  res.status(410).json({ 
+    error: 'Deprecated', 
+    message: 'Verification is now handled automatically by the x402 middleware. Please hit the invocation endpoint directly with payment proof.' 
+  });
 });
 
 // MPP Session endpoints

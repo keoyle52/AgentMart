@@ -52,74 +52,77 @@ async function payWithAutonomousKey(secretKey, destinationAddress, amountXLM) {
   return response.hash;
 }
 
-// x402 Protocol Flow
 /**
- * Full x402 flow:
- *  1. POST /api/agents/:id/invoke  → expect 402 with payment details
- *  2. Pay on-chain (autonomous key)
- *  3. POST /api/x402/verify        → server verifies tx on Stellar, returns service result
- *
- * @param {string} agentId
- * @param {'secret'} authMode
- * @param {string} publicKey  - sender public key
- * @param {string|null} secretKey - only for autonomous mode
- * @param {function} onStep   - callback(step: {label, status}) for UI updates
+ * Full x402 Official Flow:
+ *  1. POST /api/agents/:id/invoke      → Intercept 402, parse 'PAYMENT-REQUIRED' header
+ *  2. Pay on-chain via Stellar         → Get Transaction Hash
+ *  3. POST /api/agents/:id/invoke      → Add 'PAYMENT-SIGNATURE' header, get real result
  */
 export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
-  // Step 1 — Invoke agent (expect 402)
-  onStep({ label: 'Requesting service...', status: 'pending' });
-  const invokeRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
+  // Step 1 — Initial Invocation (Expect 402)
+  onStep({ label: 'Requesting service (Handshake)...', status: 'pending' });
+  const initialRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agentId }),
+    body: JSON.stringify({ agentId }), // Input parameters go here
   });
 
-  if (invokeRes.status !== 402) {
-    const body = await invokeRes.json().catch(() => ({}));
-    throw new Error(body.error || `Unexpected status ${invokeRes.status}`);
+  if (initialRes.status !== 402) {
+    const body = await initialRes.json().catch(() => ({}));
+    throw new Error(body.error || `Unexpected status ${initialRes.status}`);
   }
 
-  const { paymentDetails } = await invokeRes.json();
+  // Official header is 'PAYMENT-REQUIRED'
+  const paymentRequiredRaw = initialRes.headers.get('PAYMENT-REQUIRED');
+  if (!paymentRequiredRaw) throw new Error('Missing PAYMENT-REQUIRED header in 402 response');
+  
+  const paymentConfig = JSON.parse(paymentRequiredRaw);
+  const paymentDetails = paymentConfig.accepts[0]; // Official spec usually allows multiple, we take first
+
   onStep({
-    label: `HTTP 402 intercepted — must pay ${paymentDetails.amount} XLM`,
+    label: `x402 Handshake: Payment of ${paymentDetails.price} requested`,
     status: 'warning',
-    data: { nonce: paymentDetails.nonce, destination: paymentDetails.destination },
+    data: { destination: paymentDetails.payTo },
   });
 
-  // Step 2 — Pay on-chain (autonomous secret-key mode)
-  onStep({ label: `Signing & submitting payment (${paymentDetails.amount} XLM)...`, status: 'pending' });
-  const txHash = await payWithAutonomousKey(secretKey, paymentDetails.destination, paymentDetails.amount);
-  onStep({ label: `Payment submitted on-chain`, status: 'info', data: { txHash } });
+  // Step 2 — Pay on-chain (Autonomous mode)
+  onStep({ label: `Signing & submitting payment to ${paymentDetails.payTo.substring(0, 8)}...`, status: 'pending' });
+  const txHash = await payWithAutonomousKey(secretKey, paymentDetails.payTo, paymentDetails.price);
+  onStep({ label: `Payment submitted: ${txHash.substring(0, 12)}...`, status: 'info', data: { txHash } });
 
-  // Step 3 — Wait briefly for network propagation, then verify
-  await new Promise((r) => setTimeout(r, 3000));
-  onStep({ label: 'Verifying payment with x402 facilitator...', status: 'pending' });
+  // Step 3 — Wait for propagation and submit proof
+  // Facilitators usually need a few seconds for Horizon to index the tx
+  await new Promise((r) => setTimeout(r, 4000));
+  onStep({ label: 'Verifying proof via official x402 middleware...', status: 'pending' });
 
-  const verifyRes = await fetch(`${BACKEND_URL}/api/x402/verify`, {
+  const finalRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ txHash, nonce: paymentDetails.nonce, agentId }),
+    headers: { 
+      'Content-Type': 'application/json',
+      'PAYMENT-SIGNATURE': txHash // Official header to pass the proof
+    },
+    body: JSON.stringify({ agentId, txHash }), // Passing txHash in body too for convenience
   });
 
-  const verifyData = await verifyRes.json();
+  const finalData = await finalRes.json();
 
-  if (!verifyRes.ok) {
-    throw new Error(verifyData.error || 'Verification failed');
+  if (!finalRes.ok) {
+    throw new Error(finalData.error || 'Official verification failed');
   }
 
   // Step 4 — Service delivered
   onStep({
-    label: `Service delivered by ${verifyData.agentName}`,
+    label: `Service delivered by ${finalData.agentName}`,
     status: 'success',
     data: {
       txHash,
-      explorerUrl: verifyData.explorerUrl,
-      result: verifyData.result,
+      explorerUrl: `https://stellar.expert/explorer/${STELLAR_NETWORK === 'PUBLIC' ? 'public' : 'testnet'}/tx/${txHash}`,
+      result: finalData.result,
       protocol: 'x402',
     },
   });
 
-  return verifyData;
+  return finalData;
 }
 
 // MPP Channel Flow
