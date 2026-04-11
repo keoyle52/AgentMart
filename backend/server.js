@@ -254,27 +254,23 @@ Object.values(AGENTS).forEach(agent => {
   }
 });
 
-// 1. Core Resource Server
-const ResourceServer = new x402ResourceServer([facilitatorClient]);
-
-// 1. Create the authenticated Resource Server instance
-// This is critical: without passing the facilitatorClient, the middleware 
-// cannot verify payments that require an API Key.
+// 1. Core Resource Server instance with authentication
 const x402Server = new x402ResourceServer(x402Routes, {
-  facilitator: facilitatorClient,
-  scheme: new ExactStellarScheme()
+  facilitator: facilitatorClient
 });
 
-// 2. HTTP Adapter for background initialization
+// 2. Register Stellar scheme
+x402Server.register(x402NetworkIdentifier, new ExactStellarScheme());
+
+// 3. HTTP Resource Server with explicit middleware support
 const httpServer = new x402HTTPResourceServer(x402Server);
 
 // State tracking for protocol initialization
 let isX402Initialized = false;
 let x402InitError = null;
 
-// 3. Official x402 Express Middleware
-// We use the authenticated httpServer instance to create the middleware
-const officialX402Middleware = paymentMiddlewareFromHTTPServer(httpServer);
+// 4. Official x402 Express Middleware (Using the correct factory for instances)
+const officialX402Middleware = (req, res, next) => httpServer.handleHTTPRequest(req, res, next);
 
 const x402Middleware = async (req, res, next) => {
   // 1. Skip for non-agent invocation routes (Performance & safety)
