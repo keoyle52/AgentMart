@@ -255,13 +255,24 @@ const facilitatorClient = new HTTPFacilitatorClient({
   }
 });
 
-// 2. Official x402 Stack Initialization (Classic Exact Scheme)
+// 2. Official x402 Stack Initialization (Professional Protocol Setup)
 const x402Server = new x402ResourceServer([facilitatorClient]);
 x402Server.register('stellar:pubnet', new ExactStellarScheme());
 
 // 3. HTTP Server & Middleware Adapter
 const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
 const officialHandler = paymentMiddlewareFromHTTPServer(httpServer, null, null, false);
+
+// 4. Protocol Lifecycle Initialization
+httpServer.initialize()
+  .then(() => {
+    isX402Initialized = true;
+    console.log('✅ x402 Protocol Initialized & Ready');
+  })
+  .catch(err => {
+    x402InitError = err.message;
+    console.error('❌ x402 Protocol Initialization Failed:', err);
+  });
 
 const x402Middleware = async (req, res, next) => {
   if (!req.path.startsWith('/api/agents/')) return next();
