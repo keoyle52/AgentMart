@@ -273,8 +273,8 @@ let isX402Initialized = false;
 let x402InitError = null;
 
 // 3. Official x402 Express Middleware
-// We use the middleware from our authenticated server instance
-const officialX402Middleware = httpServer.middleware();
+// We use the authenticated httpServer instance to create the middleware
+const officialX402Middleware = paymentMiddlewareFromHTTPServer(httpServer);
 
 const x402Middleware = async (req, res, next) => {
   // 1. Skip for non-agent invocation routes (Performance & safety)
