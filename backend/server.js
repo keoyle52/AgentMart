@@ -244,7 +244,7 @@ Object.values(AGENTS).forEach(agent => {
     x402Routes[`POST /api/agents/${agent.id}/invoke`] = {
       accepts: [{
         scheme: 'exact',
-        amount: agent.priceUSDC, 
+        price: agent.priceUSDC, 
         asset: 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
         network: x402NetworkIdentifier,
         payTo: SETTLEMENT_ADDRESS,
