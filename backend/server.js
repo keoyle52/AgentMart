@@ -21,8 +21,8 @@ const PORT = process.env.PORT || 3001;
 // Intelligent Facilitator URL selection
 const defaultFacilitatorUrl = 'https://channels.openzeppelin.com';
 
-const X402_FACILITATOR_URL = (process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl).trim().replace(/\/$/, '');
-const X402_FACILITATOR_API_KEY = (process.env.X402_FACILITATOR_API_KEY || '14a2ed56-9301-4d9c-ade2-addf932868d3').trim();
+const X402_FACILITATOR_URL = 'https://channels.openzeppelin.com';
+const X402_FACILITATOR_API_KEY = '14a2ed56-9301-4d9c-ade2-addf932868d3';
 
 console.log(`[Config] Network: ${STELLAR_NETWORK}`);
 console.log(`[Config] Facilitator: ${X402_FACILITATOR_URL}`);
