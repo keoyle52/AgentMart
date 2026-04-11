@@ -71,14 +71,16 @@ graph TD
 
 ## 🤖 The Marketplace Ecosystem
 
-| Agent / Service | Protocol | Price | Category |
-|-----------------|----------|-------|----------|
-| 🌐 Web Scraper | **x402** | 0.001 USDC | Data Extraction |
-| 📊 Price Oracle | **x402** | 0.001 USDC | DeFi / Finance |
-| 🛡️ Security Auditor | **x402** | 0.001 USDC | Smart Contract Security |
-| 🌍 Realtime Translator | **MPP** | 0.001 USDC/call | Streaming AI |
-| ⚡ Code Sandbox | **x402** | 0.001 USDC | Remote Compute |
-| 🎨 Image Generator | **MPP** | 0.001 USDC/call | Creative Inference |
+| Agent / Service | Protocol | Price | Integration Status |
+|-----------------|----------|-------|--------------------|
+| 🌐 Web Scraper | **x402** | 0.001 USDC | 🟢 **Live (Real APIs)** |
+| 📊 Price Oracle | **x402** | 0.001 USDC | 🟢 **Live (Real APIs)** |
+| 🛡️ Security Auditor | **x402** | 0.001 USDC | 🟡 Simulated Demo |
+| 🌍 Realtime Translator | **MPP** | 0.001 USDC/call | 🟡 Simulated Demo |
+| ⚡ Code Sandbox | **x402** | 0.001 USDC | 🟡 Simulated Demo |
+| 🎨 Image Generator | **MPP** | 0.001 USDC/call | 🟡 Simulated Demo |
+
+> **Transparency Note for Judges:** As part of our Stage 1 Hackathon delivery, we focused our core engineering efforts on building a robust, fully decentralized **Payment Validation Layer** (x402 & MPP over Horizon). To demonstrate this, the **Web Scraper** and **Price Oracle** agents pull real live data over the internet. The other agents return mocked/simulated data to demonstrate protocol capabilities (like high-frequency streaming) without adding unnecessary 3rd party API overhead.
 
 ---
 
