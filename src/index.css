@@ -54,6 +54,7 @@ h1, h2, h3, h4, h5, h6 {
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
+  color: var(--accent); /* Fallback */
   -webkit-text-fill-color: transparent;
   animation: shine 4s linear infinite;
 }

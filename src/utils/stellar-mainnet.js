@@ -24,10 +24,10 @@ const networkPassphrase =
 
 const server = new Horizon.Server(horizonUrl);
 
-// Official USDC Asset on Stellar Mainnet
+// Official USDC Asset on Stellar Mainnet (Circle)
 const USDC_ASSET = new Asset(
   'USDC', 
-  'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X7KGX3MHO77S6Z6Z6Z6Z6Z6Z'
+  'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN'
 );
 
 // Wallet — Autonomous (secret-key) mode only

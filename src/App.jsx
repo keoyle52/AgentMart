@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import './App.css';
 import WalletConnect from './components/WalletConnect';
 import Marketplace from './components/Marketplace';
@@ -31,6 +31,11 @@ function App() {
   const [activeMPPSessions, setActiveMPPSessions] = useState({});
   // per-agent step logs for MPPSession panel visualisation
   const [mppSteps, setMppSteps] = useState({}); // agentId → [{label, status, data?}]
+  const [systemState, setSystemState] = useState({ 
+    status: 'connecting', 
+    mode: 'production', 
+    x402Initialized: false 
+  });
 
   const addMppStep = useCallback((agentId, step) => {
     setMppSteps((prev) => ({
@@ -43,6 +48,28 @@ function App() {
   const addLog = useCallback((message, type = 'default', extra = {}) => {
     setLogs((prev) => [...prev, { message, type, time: Date.now(), ...extra }]);
   }, []);
+
+  // Health check on load
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const rawUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        const url = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+        const res = await fetch(`${url}/api/health`);
+        const data = await res.json();
+        setSystemState(data);
+        if (data.mode === 'simulator') {
+          addLog('Backend running in SIMULATOR MODE (Facilitator API Key error). Transactions will be simulated.', 'warning');
+        } else {
+          addLog('Backend connection established. x402 Facilitator ready.', 'success');
+        }
+      } catch (err) {
+        setSystemState({ status: 'error', mode: 'none', x402Initialized: false });
+        addLog('Could not connect to backend. Please check if the server is running.', 'error');
+      }
+    };
+    checkHealth();
+  }, [addLog]);
 
   // Wallet handlers
   const handleWalletConnected = async (pubKey, bal, mode, secKey = null) => {
@@ -246,10 +273,18 @@ function App() {
             </h4>
             <div className="flex flex-col gap-3" style={{ fontSize: '0.85rem' }}>
               {[
-                { label: 'x402 Facilitator', value: 'Connected', color: '#10b981' },
+                { 
+                   label: 'x402 Facilitator', 
+                   value: systemState.mode === 'simulator' ? 'Simulator' : (systemState.x402Initialized ? 'Connected' : 'Syncing...'), 
+                   color: systemState.mode === 'simulator' ? '#f59e0b' : (systemState.x402Initialized ? '#10b981' : '#94a3b8') 
+                },
                 { label: 'Stripe MPP', value: Object.keys(activeMPPSessions).length > 0 ? `${Object.keys(activeMPPSessions).length} session(s) active` : 'Standby', color: Object.keys(activeMPPSessions).length > 0 ? '#a78bfa' : '#94a3b8' },
                 { label: 'Stellar Network', value: 'Mainnet', color: '#f8fafc' },
-                { label: 'A2A Messaging', value: 'Online', color: '#10b981' },
+                { 
+                   label: 'System Mode', 
+                   value: systemState.mode === 'simulator' ? 'Simulator' : (systemState.mode === 'production' ? 'Real-Verified' : 'Disconnected'), 
+                   color: systemState.mode === 'simulator' ? '#f59e0b' : (systemState.mode === 'production' ? '#10b981' : '#ef4444') 
+                },
               ].map(({ label, value, color }) => (
                 <div key={label} className="flex justify-between items-center">
                   <span className="text-muted">{label}</span>
