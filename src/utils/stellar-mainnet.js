@@ -23,7 +23,7 @@ const horizonUrl = 'https://horizon.stellar.org';
 const networkPassphrase = Networks.PUBLIC;
 
 const server = new Horizon.Server(horizonUrl);
-const rpcServer = new rpc.Server('https://soroban-rpc.mainnet.stellar.org');
+const rpcServer = new rpc.Server('https://mainnet.sorobanrpc.com');
 const usdcContract = new Contract('CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75');
 
 // Wallet — Autonomous (secret-key) mode only

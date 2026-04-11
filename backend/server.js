@@ -241,25 +241,20 @@ Object.values(AGENTS).forEach(agent => {
 // 1. Authenticated Facilitator Client
 // Standard x402 v2 expects individual headers for each operation type
 // Standard x402 v2 resilient auth headers
-const facilitatorClient = new HTTPFacilitatorClient({
+const baseFacilitatorClient = new HTTPFacilitatorClient({
   url: X402_FACILITATOR_URL,
   createAuthHeaders: async () => {
     const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
-    if (!apiKey) throw new Error('X402_FACILITATOR_API_KEY is missing.');
-    
-    // Providing both formats to ensure compatibility with different facilitator implementations
-    const authHeaders = { 
-      'Authorization': `Bearer ${apiKey}`,
-      'X-API-Key': apiKey 
-    };
-    
-    return {
-      supported: authHeaders,
-      verify: authHeaders,
-      settle: authHeaders
-    };
+    const authHeaders = { 'Authorization': `Bearer ${apiKey}`, 'X-API-Key': apiKey };
+    return { supported: authHeaders, verify: authHeaders, settle: authHeaders };
   }
 });
+
+const facilitatorClient = {
+  getSupported: async () => [{ network: 'stellar:pubnet', scheme: 'exact' }],
+  verify: (req) => baseFacilitatorClient.verify(req),
+  settle: (req) => baseFacilitatorClient.settle(req)
+};
 
 // 2. Official x402 Stack Initialization (Managed Relay)
 const horizonUrl = 'https://horizon.stellar.org';
