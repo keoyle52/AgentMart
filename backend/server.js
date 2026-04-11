@@ -30,28 +30,9 @@ console.log(`[Config] Network: ${STELLAR_NETWORK}`);
 console.log(`[Config] Facilitator: ${X402_FACILITATOR_URL}`);
 console.log(`[Config] API Key: ${X402_FACILITATOR_API_KEY ? X402_FACILITATOR_API_KEY.substring(0, 8) + '...' : 'MISSING'}`);
 
-// Official x402 Protocol Stack Configuration
-const facilitatorClient = new HTTPFacilitatorClient({
-  url: X402_FACILITATOR_URL,
-  createAuthHeaders: async () => {
-    const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
-    if (!apiKey) {
-      throw new Error('401 Unauthorized: X402_FACILITATOR_API_KEY is missing.');
-    }
-    // Some facilitators use Bearer, some use X-API-Key. Providing both for resilience.
-    const authHeader = { 
-      'Authorization': `Bearer ${apiKey}`,
-      'X-API-Key': apiKey 
-    };
-    return {
-      supported: authHeader,
-      verify: authHeader,
-      settle: authHeader,
-      list: authHeader,
-    };
-  },
-});
-
+// --- x402 Protocol State ---
+let isX402Initialized = false;
+let x402InitError = null;
 const x402NetworkIdentifier = STELLAR_NETWORK === 'PUBLIC' ? 'stellar:pubnet' : 'stellar:testnet';
 
 const horizonServer = new Horizon.Server(
