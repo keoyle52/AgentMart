@@ -4,10 +4,11 @@ import {
   Operation, 
   Keypair, 
   Asset, 
-  Horizon, 
-  BASE_FEE,
+  Horizon,
   Memo
 } from '@stellar/stellar-sdk';
+
+const BASE_FEE = '100'; // Default base fee
 
 const rawUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 const BACKEND_URL = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
