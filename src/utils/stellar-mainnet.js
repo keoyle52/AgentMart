@@ -142,6 +142,9 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   onStep({ label: `Payment submitted: ${txHash.substring(0, 12)}...`, status: 'info', data: { txHash } });
 
   // Step 3 — Submit official proof
+  onStep({ label: `Waiting for facilitator to index (3s)...`, status: 'pending' });
+  await new Promise(r => setTimeout(r, 3000));
+  
   onStep({ label: `Verifying payment proof...`, status: 'pending' });
   
   // Official x402 v2 Proof Format: base64(JSON({ x402Version, accepted, proof }))

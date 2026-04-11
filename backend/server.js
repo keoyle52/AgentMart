@@ -50,7 +50,7 @@ const AGENTS = {
     id: 'web-scraper',
     name: 'Web Scraper Agent',
     description: 'Extracts structured data from any public URL.',
-    priceUSDC: '0.0010000', 
+    priceUSDC: '0.001', 
     protocol: 'x402',
     invoke: async (input) => {
       const targetUrl = input?.url || 'https://stellar.org';
@@ -85,7 +85,7 @@ const AGENTS = {
     id: 'price-oracle',
     name: 'Price Oracle Agent',
     description: 'Delivers real-time asset prices from aggregated sources.',
-    priceUSDC: '0.0010000',
+    priceUSDC: '0.001',
     protocol: 'x402',
     invoke: async () => {
       try {
@@ -127,7 +127,7 @@ const AGENTS = {
     id: 'security-auditor',
     name: 'Security Auditor Agent',
     description: 'Scans Soroban smart contracts for vulnerabilities.',
-    priceUSDC: '0.0010000',
+    priceUSDC: '0.001',
     protocol: 'x402',
     invoke: async () => ({
       status: 'success',
@@ -146,7 +146,7 @@ const AGENTS = {
     id: 'translator',
     name: 'Realtime Translator Agent',
     description: 'Context-aware A2A language translation at machine speed.',
-    priceUSDC: '0.0010000',
+    priceUSDC: '0.001',
     protocol: 'mpp',
     invoke: async () => ({
       status: 'success',
@@ -163,7 +163,7 @@ const AGENTS = {
     id: 'code-executor',
     name: 'Sandboxed Code Executor',
     description: 'Runs isolated code snippets and returns output.',
-    priceUSDC: '0.0050000',
+    priceUSDC: '0.001',
     protocol: 'x402',
     invoke: async () => ({
       status: 'success',
@@ -181,7 +181,7 @@ const AGENTS = {
     id: 'image-generator',
     name: 'AI Image Generator',
     description: 'Generates images from text prompts via A2A inference.',
-    priceUSDC: '0.0100000',
+    priceUSDC: '0.001',
     protocol: 'mpp',
     invoke: async () => ({
       status: 'success',
@@ -229,7 +229,7 @@ Object.values(AGENTS).forEach(agent => {
     x402Routes[`POST /api/agents/${agent.id}/invoke`] = {
       accepts: [{
         scheme: 'exact',
-        price: agent.priceUSDC, 
+        price: '0.001', 
         asset: 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
         network: x402NetworkIdentifier,
         payTo: SETTLEMENT_ADDRESS,
@@ -350,14 +350,10 @@ app.post('/api/agents/:agentId/invoke', async (req, res) => {
   }
 });
 
-/**
- * x402 VERIFICATION ENDPOINT (DEPRECATED - Middleware handles this now)
- * We keep a no-op endpoint for backward compatibility during migration if needed
- */
 app.post('/api/x402/verify', (req, res) => {
   res.status(410).json({ 
     error: 'Deprecated', 
-    message: 'Verification is now handled automatically by the x402 middleware. Please hit the invocation endpoint directly with payment proof.' 
+    message: 'Verification is now handled automatically by the x402 middleware.' 
   });
 });
 

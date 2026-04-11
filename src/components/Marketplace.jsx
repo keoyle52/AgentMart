@@ -51,7 +51,7 @@ const AGENTS = [
     icon: Zap,
     iconColor: '#a78bfa',
     desc: 'Sandboxed execution of code snippets with stdout/stderr.',
-    priceUSDC: '0.005',
+    priceUSDC: '0.001',
     protocol: 'x402',
     category: 'Compute',
   },
