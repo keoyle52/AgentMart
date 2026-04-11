@@ -56,8 +56,21 @@ async function payWithAutonomousKey(secretKey, destinationAddress, amountUSDC) {
   const sourceKeypair = Keypair.fromSecret(secretKey);
   const tx = await buildPaymentTx(sourceKeypair.publicKey(), destinationAddress, amountUSDC);
   tx.sign(sourceKeypair);
-  const response = await server.submitTransaction(tx);
-  return response.hash;
+  
+  try {
+    const response = await server.submitTransaction(tx);
+    return response.hash;
+  } catch (error) {
+    // Extract detailed Stellar error codes from Horizon's response
+    const codes = error.response?.data?.extras?.result_codes;
+    if (codes) {
+      const opErrors = codes.operations ? codes.operations.join(', ') : '';
+      const txError = codes.transaction || '';
+      const detailedMsg = opErrors ? `${txError} -> ${opErrors}` : txError;
+      throw new Error(`Stellar Horizon Error: ${detailedMsg}`);
+    }
+    throw error;
+  }
 }
 
 /**
