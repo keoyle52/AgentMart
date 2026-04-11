@@ -195,9 +195,13 @@ const AGENTS = {
   },
 };
 
-// Middleware
+// Resilient CORS for x402 Protocol
 app.use(cors({
-  exposedHeaders: ['PAYMENT-REQUIRED']
+  origin: true, // Allow all origins for the hackathon
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'PAYMENT-SIGNATURE', 'PAYMENT-REQUIRED', 'PAYMENT-RESPONSE'],
+  exposedHeaders: ['PAYMENT-REQUIRED', 'PAYMENT-RESPONSE'],
+  credentials: true
 }));
 app.use(express.json());
 
