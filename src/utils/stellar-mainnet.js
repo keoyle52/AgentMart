@@ -174,15 +174,20 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
     // Attempt different spec-compliant and de-facto formats for the PAYMENT-SIGNATURE header
     let proof;
     if (i === 0) {
-      proof = btoa(JSON.stringify({ transaction: txHash })); // 1. Official Base64 JSON (Proof object)
+      // 1. Enriched Official Base64 JSON (Transaction + Network)
+      proof = btoa(JSON.stringify({ transaction: txHash, network: 'stellar:pubnet' })); 
     } else if (i === 1) {
-      proof = JSON.stringify({ transaction: txHash });      // 2. Raw JSON string (Proof object)
+      // 2. Alternate JSON key (Signature)
+      proof = btoa(JSON.stringify({ signature: txHash, network: 'stellar:pubnet' }));
     } else if (i === 2) {
-      proof = btoa(JSON.stringify({ signature: txHash }));   // 3. Alternate JSON key (Signature)
+      // 3. Raw JSON string (Proof object)
+      proof = JSON.stringify({ transaction: txHash, network: 'stellar:pubnet' });
     } else if (i === 3) {
-      proof = btoa(txHash);                                  // 4. Base64-encoded raw hash
+      // 4. Base64-encoded raw hash fallback
+      proof = btoa(txHash); 
     } else {
-      proof = txHash;                                        // 5. Raw hash fallback
+      // 5. Raw hash fallback
+      proof = txHash;
     }
 
     try {
