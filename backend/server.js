@@ -33,7 +33,7 @@ console.log(`[Config] API Key: ${X402_FACILITATOR_API_KEY ? X402_FACILITATOR_API
 // --- x402 Protocol State ---
 let isX402Initialized = false;
 let x402InitError = null;
-const x402NetworkIdentifier = STELLAR_NETWORK === 'PUBLIC' ? 'stellar:pubnet' : 'stellar:testnet';
+const activeNetworkId = STELLAR_NETWORK === 'PUBLIC' ? 'public' : 'testnet';
 
 const horizonServer = new Horizon.Server(
   STELLAR_NETWORK === 'PUBLIC'
