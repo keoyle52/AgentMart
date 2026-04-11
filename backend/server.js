@@ -500,7 +500,7 @@ async function verifyMPPSettlement(sessionId, txHash, expectedAmount) {
         op.type === 'payment' &&
         op.to === SETTLEMENT_ADDRESS &&
         op.asset_code === 'USDC' &&
-        op.asset_issuer === 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' &&
+        op.asset_issuer === 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' && // Official USDC Issuer Address
         parseFloat(op.amount) >= parseFloat(expectedAmount.toFixed(7))
     );
 
