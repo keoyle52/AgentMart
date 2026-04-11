@@ -74,6 +74,31 @@ async function payWithAutonomousKey(secretKey, destinationAddress, amountUSDC) {
 }
 
 /**
+ * Setup a trustline for the official Circle USDC asset.
+ * Required for accounts that have never held USDC on Stellar.
+ */
+export async function setupTrustline(secretKey) {
+  const sourceKeypair = Keypair.fromSecret(secretKey);
+  const account = await server.loadAccount(sourceKeypair.publicKey());
+  
+  const tx = new TransactionBuilder(account, {
+    fee: await server.fetchBaseFee(),
+    networkPassphrase,
+  })
+    .addOperation(
+      Operation.changeTrust({
+        asset: USDC_ASSET,
+      })
+    )
+    .setTimeout(30)
+    .build();
+
+  tx.sign(sourceKeypair);
+  const response = await server.submitTransaction(tx);
+  return response.hash;
+}
+
+/**
  * Full x402 Official Flow:
  *  1. POST /api/agents/:id/invoke      → Intercept 402, parse 'PAYMENT-REQUIRED' header
  *  2. Pay on-chain via Stellar         → Get Transaction Hash
@@ -240,6 +265,7 @@ export async function fetchBalance(publicKey) {
     return {
       native: native ? parseFloat(native.balance) : 0,
       usdc: usdc ? parseFloat(usdc.balance) : 0,
+      hasUSDCTrustline: !!usdc,
     };
   } catch (err) {
     console.error('Fetch balance failed:', err);

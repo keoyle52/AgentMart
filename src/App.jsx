@@ -91,9 +91,28 @@ function App() {
       setSecretKey(secKey);
       setIsConnected(true);
       setAddress(kp.publicKey());
-      const bals = await fetchBalance(kp.publicKey());
+      
+      let bals = await fetchBalance(kp.publicKey());
       setBalances(bals);
       addLog(`Autonomous Agent key linked. Address: ${kp.publicKey().substring(0, 8)}...`, 'info');
+      
+      // Automatic Trustline Setup if missing
+      if (!bals.hasUSDCTrustline) {
+        addLog('USDC Trustline missing. Automatically activating account for x402 payments...', 'warning');
+        try {
+          // Import from stellar-mainnet utils
+          const { setupTrustline } = await import('./utils/stellar-mainnet');
+          const txHash = await setupTrustline(secKey);
+          addLog(`USDC Trustline activated successfully: ${txHash.substring(0, 8)}...`, 'success');
+          
+          // Refresh balance
+          bals = await fetchBalance(kp.publicKey());
+          setBalances(bals);
+        } catch (trustErr) {
+          addLog(`Automatic activation failed: ${trustErr.message}. You may need at least 1-2 XLM for the trustline reserve.`, 'error');
+        }
+      }
+
       addLog('Agent is running in autonomous mode — no human approval required per tx.', 'default');
     } catch {
       addLog('Invalid secret key or account not found on network.', 'error');
