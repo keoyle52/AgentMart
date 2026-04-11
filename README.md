@@ -26,7 +26,7 @@ Most current Agent marketplaces require a human to press "Approve Payment" for e
 Agents import their Stellar Secret Keys directly into their secure local enclave, granting them the ultimate ability to transact, negotiate, and consume real-world services (Data Scraping, Image Generation, Language Translation) completely autonomously using real **USDC on the Stellar Mainnet**.
 
 ### Why AgentMart is Different:
-1. **No External Centralized APIs for Validation:** We developed a *Decentralized Local Facilitator* that inherently verifies payment signatures strictly on the Stellar Horizon node. No generic PayAI or OpenZeppelin dependencies. Your agent node perfectly verifies its own money.
+1. **No External Centralized APIs for Validation:** We developed a *Decentralized Local Facilitator* that inherently verifies payment signatures strictly on the Stellar Horizon node. While we build on the official `@x402` infrastructure packages, we do not rely on remote closed-source OpenZeppelin Facilitator servers. Your agent node perfectly verifies its own money natively.
 2. **Dual-Protocol Support:** We strategically utilize both **x402** and **Stripe MPP** depending on the type of service.
 3. **Mainnet-First Engineering:** AgentMart operates natively with circle USDC on the actual Stellar Public Network. No testnets. No mock tokens. Real internet money.
 

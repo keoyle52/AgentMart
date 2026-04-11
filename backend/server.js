@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 3001;
 const defaultFacilitatorUrl = 'https://channels.openzeppelin.com';
 
 const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://channels.openzeppelin.com/x402';
-const X402_FACILITATOR_API_KEY = process.env.X402_FACILITATOR_API_KEY || '14a2ed56-9301-4d9c-ade2-addf932868d3';
+const X402_FACILITATOR_API_KEY = process.env.X402_FACILITATOR_API_KEY || '';
 
 console.log(`[Config] Network: ${STELLAR_NETWORK}`);
 console.log(`[Config] Facilitator: ${X402_FACILITATOR_URL}`);
@@ -245,7 +245,17 @@ class DecentralizedLocalFacilitator {
     if (!txData) {
       return { isValid: false, invalidReason: 'No transaction data found in payload' };
     }
-    return { isValid: true, payer: 'autonomous-agent' };
+    
+    // Strict on-chain verification
+    try {
+      if (typeof txData === 'string' && txData.length === 64) {
+        await horizonServer.transactions().transaction(txData).call();
+        return { isValid: true, payer: 'verified-onchain-agent' };
+      }
+      return { isValid: false, invalidReason: 'Transaction format unsupported for verification' };
+    } catch (err) {
+      return { isValid: false, invalidReason: 'Transaction not found on Stellar Mainnet' };
+    }
   }
 
   async settle(paymentPayload, paymentRequirements) {
@@ -253,7 +263,7 @@ class DecentralizedLocalFacilitator {
       const txData = paymentPayload.proof?.transactionHash || paymentPayload.payload?.transactionHash || paymentPayload.payload?.transaction || paymentPayload.transactionHash;
       console.log(`[Stellar Facilitator] Attempting to settle payment...`);
       
-      // Check if it's an XDR envelope (standard x402 flow for Stellar)
+      // Check if it's an XDR envelope
       if (typeof txData === 'string' && txData.length > 64 && !txData.match(/^[0-9a-fA-F]{64}$/)) {
         console.log(`[Stellar Facilitator] Submitting XDR envelope to Horizon...`);
         const tx = new Horizon.Transaction(txData, Networks.PUBLIC);
@@ -272,9 +282,8 @@ class DecentralizedLocalFacilitator {
       throw new Error('Invalid transaction format');
     } catch (err) {
       console.error(`[Stellar Facilitator] ❌ Settlement/Verification failed:`, err?.response?.data || err.message);
-      // Hackathon Fallback: If Horizon is rate-limiting during demo, let it pass rather than crash the pitch
-      console.warn(`[Stellar Facilitator] ⚠️ Falling back to manual bypass for demo continuity.`);
-      return { success: true, transaction: 'fallback-demo-tx', network: paymentRequirements.network };
+      // Removed the demo bypass fallback completely to ensure strict on-chain validation.
+      throw err;
     }
   }
 
