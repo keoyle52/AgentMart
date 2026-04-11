@@ -7,7 +7,10 @@ import { HTTPFacilitatorClient } from '@x402/core/server';
 import { paymentMiddlewareFromConfig } from '@x402/express';
 import { ExactStellarScheme } from '@x402/stellar/exact/server';
 
-
+const app = express();
+const STELLAR_NETWORK = process.env.STELLAR_NETWORK || 'PUBLIC';
+const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || 'GCJV64SQP24FBBYMUK5UUK76STPG45XGLVILU3TYNYASDAFFUSET3YY7';
+const PORT = process.env.PORT || 3001;
 
 // Official x402 Protocol Stack Configuration
 const facilitatorClient = new HTTPFacilitatorClient({
