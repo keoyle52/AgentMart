@@ -237,16 +237,23 @@ Object.values(AGENTS).forEach(agent => {
 
 // 1. Authenticated Facilitator Client
 // Standard x402 v2 expects individual headers for each operation type
+// Standard x402 v2 resilient auth headers
 const facilitatorClient = new HTTPFacilitatorClient({
   url: X402_FACILITATOR_URL,
   createAuthHeaders: async () => {
     const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
     if (!apiKey) throw new Error('X402_FACILITATOR_API_KEY is missing.');
-    const headers = { 'X-API-Key': apiKey };
+    
+    // Providing both formats to ensure compatibility with different facilitator implementations
+    const authHeaders = { 
+      'Authorization': `Bearer ${apiKey}`,
+      'X-API-Key': apiKey 
+    };
+    
     return {
-      supported: headers,
-      verify: headers,
-      settle: headers
+      supported: authHeaders,
+      verify: authHeaders,
+      settle: authHeaders
     };
   }
 });
