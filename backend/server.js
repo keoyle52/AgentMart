@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 3001;
 // Intelligent Facilitator URL selection
 const defaultFacilitatorUrl = 'https://channels.openzeppelin.com';
 
-const X402_FACILITATOR_URL = 'https://channels.openzeppelin.com';
+const X402_FACILITATOR_URL = 'https://channels.openzeppelin.com/x402';
 const X402_FACILITATOR_API_KEY = '14a2ed56-9301-4d9c-ade2-addf932868d3';
 
 console.log(`[Config] Network: ${STELLAR_NETWORK}`);
@@ -287,7 +287,7 @@ const x402Middleware = async (req, res, next) => {
         const decoded = JSON.parse(Buffer.from(signature, 'base64').toString());
         console.error(`[x402 Trace] Verification FAILED (Status: ${res.statusCode}) on path: ${req.path}`);
         console.error(`[x402 Trace] Decoded Proof:`, JSON.stringify(decoded, null, 2));
-        console.error(`[x402 Trace] Relayer Rejection:`, typeof body === 'string' ? body : JSON.stringify(body));
+        console.error(`[x402 Debug] Facilitator Error Response:`, typeof body === 'string' ? body : JSON.stringify(body));
       } catch (e) {
         console.error(`[x402 Trace] Failed to decode signature or body: ${e.message}`);
       }
