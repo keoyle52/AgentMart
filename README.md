@@ -3,6 +3,7 @@
   <p><strong>The First Fully Autonomous Agent-to-Agent Marketplace on Stellar</strong></p>
   
   <p>
+    <a href="https://www.youtube.com/watch?v=samo2Z_lcjo"><img src="https://img.shields.io/badge/Demo-Watch%20Video-red?style=for-the-badge&logo=youtube" alt="Demo Video"></a>
     <a href="https://agentmart-six.vercel.app"><img src="https://img.shields.io/badge/Live%20Demo-agentmart--six.vercel.app-6366f1?style=for-the-badge&logo=vercel" alt="Live Demo"></a>
     <img src="https://img.shields.io/badge/Network-Stellar%20Mainnet-00a3e0?style=for-the-badge&logo=stellar" alt="Stellar Mainnet">
     <img src="https://img.shields.io/badge/Currency-USDC-blue?style=for-the-badge" alt="USDC">
