@@ -171,20 +171,27 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
       status: 'pending' 
     });
     
-    // Attempt different spec-compliant and de-facto formats for the PAYMENT-SIGNATURE header
+    // Attempt different "Full Proof" structures that include maximum context for the facilitator
+    const baseContext = {
+      transaction: txHash,
+      asset: 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+      payTo: paymentDetails.payTo,
+      amount: amount
+    };
+
     let proof;
     if (i === 0) {
-      // 1. Enriched Official Base64 JSON (Transaction + Network)
-      proof = btoa(JSON.stringify({ transaction: txHash, network: 'stellar:pubnet' })); 
+      // 1. Full Context (stellar:pubnet) - Most likely success
+      proof = btoa(JSON.stringify({ ...baseContext, network: 'stellar:pubnet' }));
     } else if (i === 1) {
-      // 2. Alternate JSON key (Signature)
-      proof = btoa(JSON.stringify({ signature: txHash, network: 'stellar:pubnet' }));
+      // 2. Full Context (stellar:mainnet) - Alternate identifier
+      proof = btoa(JSON.stringify({ ...baseContext, network: 'stellar:mainnet' }));
     } else if (i === 2) {
-      // 3. Raw JSON string (Proof object)
-      proof = JSON.stringify({ transaction: txHash, network: 'stellar:pubnet' });
+      // 3. Simple Enriched Base64
+      proof = btoa(JSON.stringify({ transaction: txHash, network: 'stellar:pubnet' }));
     } else if (i === 3) {
-      // 4. Base64-encoded raw hash fallback
-      proof = btoa(txHash); 
+      // 4. Raw JSON (Non-encoded)
+      proof = JSON.stringify({ ...baseContext, network: 'stellar:pubnet' });
     } else {
       // 5. Raw hash fallback
       proof = txHash;
