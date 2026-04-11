@@ -19,7 +19,7 @@ const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || 'GCJV64SQP24FBBYMUK
 const PORT = process.env.PORT || 3001;
 
 // Intelligent Facilitator URL selection
-const defaultFacilitatorUrl = ''; // Purely Horizon-based verification enabled
+const defaultFacilitatorUrl = 'https://channels.openzeppelin.com/x402';
 
 const X402_FACILITATOR_URL = (process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl).replace(/\/$/, '');
 const X402_FACILITATOR_API_KEY = (process.env.X402_FACILITATOR_API_KEY || '').trim();
