@@ -46,6 +46,7 @@ const AGENTS = {
     name: 'Web Scraper Agent',
     description: 'Extracts structured data from any public URL.',
     priceXLM: '0.001',
+    priceUSD: '0.001', // Standardized to USD/USDC for x402
     protocol: 'x402',
     invoke: async (input) => {
       const targetUrl = input?.url || 'https://stellar.org';
@@ -81,6 +82,7 @@ const AGENTS = {
     name: 'Price Oracle Agent',
     description: 'Delivers real-time asset prices from aggregated sources.',
     priceXLM: '0.0005',
+    priceUSD: '0.0005',
     protocol: 'x402',
     invoke: async () => {
       try {
@@ -123,6 +125,7 @@ const AGENTS = {
     name: 'Security Auditor Agent',
     description: 'Scans Soroban smart contracts for vulnerabilities.',
     priceXLM: '0.02',
+    priceUSD: '0.02',
     protocol: 'x402',
     invoke: async () => ({
       status: 'success',
@@ -159,6 +162,7 @@ const AGENTS = {
     name: 'Sandboxed Code Executor',
     description: 'Runs isolated code snippets and returns output.',
     priceXLM: '0.005',
+    priceUSD: '0.005',
     protocol: 'x402',
     invoke: async () => ({
       status: 'success',
@@ -207,7 +211,7 @@ Object.values(AGENTS).forEach(agent => {
     x402Routes[`POST /api/agents/${agent.id}/invoke`] = {
       accepts: [{
         scheme: 'exact',
-        price: agent.priceXLM,
+        price: agent.priceUSD, // Switched to USDC-aligned pricing
         network: x402NetworkIdentifier,
         payTo: SETTLEMENT_ADDRESS,
       }],
@@ -219,19 +223,8 @@ Object.values(AGENTS).forEach(agent => {
 // 1. Core Resource Server
 const ResourceServer = new x402ResourceServer([facilitatorClient]);
 
-// Register Stellar scheme with a custom money parser to support XLM (native) instead of USDC
-const stellarScheme = new ExactStellarScheme();
-stellarScheme.registerMoneyParser(async (amount) => {
-  // Convert standard decimal (e.g. 0.001) to Stellar stroops (7 decimals)
-  const stroops = (parseFloat(amount) * 1e7).toFixed(0);
-  return {
-    amount: stroops,
-    asset: 'native', // XLM
-    extra: {}
-  };
-});
-
-ResourceServer.register(x402NetworkIdentifier, stellarScheme);
+// Register Stellar scheme (Default is USDC-ready)
+ResourceServer.register(x402NetworkIdentifier, new ExactStellarScheme());
 
 // 2. HTTP Adapter
 const httpServer = new x402HTTPResourceServer(ResourceServer, x402Routes);

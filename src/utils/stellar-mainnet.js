@@ -1,11 +1,12 @@
-import {
-  Horizon,
-  Keypair,
-  Memo,
-  TransactionBuilder,
-  Networks,
-  Asset,
-  Operation,
+import { 
+  TransactionBuilder, 
+  Networks, 
+  Operation, 
+  Keypair, 
+  Asset, 
+  Horizon, 
+  BASE_FEE,
+  Memo
 } from '@stellar/stellar-sdk';
 
 const rawUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -22,6 +23,12 @@ const networkPassphrase =
 
 const server = new Horizon.Server(horizonUrl);
 
+// Official USDC Asset on Stellar Mainnet
+const USDC_ASSET = new Asset(
+  'USDC', 
+  'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X7KGX3MHO77S6Z6Z6Z6Z6Z6Z'
+);
+
 // Wallet — Autonomous (secret-key) mode only
 
 // Low-level payment builders
@@ -35,7 +42,7 @@ async function buildPaymentTx(sourcePublicKey, destinationAddress, amountXLM) {
     .addOperation(
       Operation.payment({
         destination: destinationAddress,
-        asset: Asset.native(),
+        asset: USDC_ASSET,
         amount: amountXLM.toString(),
       })
     )
