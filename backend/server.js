@@ -230,7 +230,7 @@ Object.values(AGENTS).forEach(agent => {
           amount: '10000', // 0.001 * 10^7 (Stellar precision)
           asset: USDC_ASSET
         },
-        network: 'public', 
+        network: 'stellar:pubnet', 
         payTo: SETTLEMENT_ADDRESS,
       }],
       description: agent.description,
