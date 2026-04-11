@@ -119,7 +119,7 @@ function BudgetBar({ spent, max }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.4rem' }}>
         <span style={{ color: 'rgba(255,255,255,0.5)' }}>Channel Budget</span>
         <span style={{ color: barColor, fontWeight: 600 }}>
-          {remaining.toFixed(5)} XLM left
+          {remaining.toFixed(2)} USDC left
         </span>
       </div>
       <div style={{
@@ -138,8 +138,8 @@ function BudgetBar({ spent, max }) {
         }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginTop: '0.3rem', color: 'rgba(255,255,255,0.3)' }}>
-        <span>0 XLM</span>
-        <span>{max} XLM max</span>
+        <span>0 USDC</span>
+        <span>{max} USDC max</span>
       </div>
     </div>
   );
@@ -162,9 +162,9 @@ function BudgetBar({ spent, max }) {
 export default function MPPSession({ agent, session, isProcessing, onOpen, onInvoke, onClose, steps = [] }) {
   const hasSession = !!session;
   const callCount = session?.micropaymentCount ?? 0;
-  const maxBudget = session?.maxBudgetXLM ?? 0.1;
+  const maxBudget = session?.maxBudgetUSDC ?? 0.5;
   const spent = maxBudget - (session?.remainingBudget ?? maxBudget);
-  const budgetExhausted = session && session.remainingBudget <= parseFloat(agent.priceXLM);
+  const budgetExhausted = session && session.remainingBudget <= parseFloat(agent.priceUSDC);
 
   return (
     <div style={{
@@ -191,7 +191,7 @@ export default function MPPSession({ agent, session, isProcessing, onOpen, onInv
             MPP Payment Channel
           </div>
           <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-            {agent.name} · {agent.priceXLM} XLM per call
+            {agent.name} · {agent.priceUSDC} USDC per call
           </div>
         </div>
         {/* Status badge */}
@@ -258,7 +258,7 @@ export default function MPPSession({ agent, session, isProcessing, onOpen, onInv
           {[
             { label: 'Session ID', value: session.sessionId?.slice(0, 10) + '...' },
             { label: 'Micropayments', value: callCount },
-            { label: 'Spent', value: `${spent.toFixed(5)} XLM` },
+            { label: 'Spent', value: `${spent.toFixed(4)} USDC` },
             { label: 'Tx Fees Paid', value: '0 (off-chain)' },
           ].map(({ label, value }) => (
             <div key={label} style={{

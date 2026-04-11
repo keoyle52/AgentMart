@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Wallet, Key, Unplug } from 'lucide-react';
 
-export default function WalletConnect({ onWalletConnected, address, balance, isConnected }) {
+export default function WalletConnect({ onWalletConnected, address, balances, isConnected }) {
   const [secretKeyInput, setSecretKeyInput] = useState('');
   const [error, setError] = useState(null);
 
@@ -14,7 +14,7 @@ export default function WalletConnect({ onWalletConnected, address, balance, isC
   };
 
   const disconnect = () => {
-     onWalletConnected(null, 0, null);
+     onWalletConnected(null, null, null);
   };
 
   return (
@@ -51,10 +51,14 @@ export default function WalletConnect({ onWalletConnected, address, balance, isC
          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="flex justify-between items-start">
                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                 <span className="text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Network Balance</span>
+                 <span className="text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Asset Balance</span>
                  <span style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                   {balance.toFixed(4)} <span style={{ fontSize: '1rem', color: '#10b981' }}>XLM</span>
+                   {balances.usdc.toFixed(2)} <span style={{ fontSize: '1rem', color: '#10b981' }}>USDC</span>
                  </span>
+                 <div className="flex items-center gap-2 mt-2" style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                    <span>XLM (Network Fee):</span>
+                    <span style={{ color: '#f8fafc' }}>{balances.xlm.toFixed(4)}</span>
+                 </div>
                </div>
                <button className="btn" onClick={disconnect} style={{ padding: '0.4rem', border: 'none', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
                    <Unplug size={16} />
@@ -65,7 +69,8 @@ export default function WalletConnect({ onWalletConnected, address, balance, isC
                {address ? `${address.substring(0,8)}...${address.substring(address.length-4)}` : 'S... (Hidden)'}
             </div>
          </div>
-      )}
+      )
+}
       
       <div className="flex flex-col gap-2" style={{ marginTop: '0.5rem' }}>
          <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Protocols</span>

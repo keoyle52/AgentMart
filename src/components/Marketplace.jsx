@@ -11,7 +11,7 @@ const AGENTS = [
     icon: Globe,
     iconColor: '#60a5fa',
     desc: 'Extracts structured data from any public URL on demand.',
-    priceXLM: '0.001',
+    priceUSDC: '0.01',
     protocol: 'x402',
     category: 'Data',
   },
@@ -21,7 +21,7 @@ const AGENTS = [
     icon: Database,
     iconColor: '#34d399',
     desc: 'Aggregated real-time asset prices from multiple CEX sources.',
-    priceXLM: '0.0005',
+    priceUSDC: '0.005',
     protocol: 'x402',
     category: 'Finance',
   },
@@ -31,7 +31,7 @@ const AGENTS = [
     icon: Shield,
     iconColor: '#f87171',
     desc: 'Scans Soroban smart contracts for vulnerabilities & risks.',
-    priceXLM: '0.02',
+    priceUSDC: '0.20',
     protocol: 'x402',
     category: 'Security',
   },
@@ -41,7 +41,7 @@ const AGENTS = [
     icon: Bot,
     iconColor: '#f59e0b',
     desc: 'Context-aware A2A language translation at machine speed.',
-    priceXLM: '0.001',
+    priceUSDC: '0.01',
     protocol: 'mpp',
     category: 'Language',
   },
@@ -51,7 +51,7 @@ const AGENTS = [
     icon: Zap,
     iconColor: '#a78bfa',
     desc: 'Sandboxed execution of code snippets with stdout/stderr.',
-    priceXLM: '0.005',
+    priceUSDC: '0.05',
     protocol: 'x402',
     category: 'Compute',
   },
@@ -61,7 +61,7 @@ const AGENTS = [
     icon: Image,
     iconColor: '#f472b6',
     desc: 'Generates images from text prompts via A2A inference.',
-    priceXLM: '0.01',
+    priceUSDC: '0.10',
     protocol: 'mpp',
     category: 'Creative',
   },
@@ -148,7 +148,7 @@ export default function Marketplace({ onPurchase, onMPPInvoke, disabled, activeM
               <div className="flex justify-between items-center" style={{ marginTop: 'auto' }}>
                 <div>
                   <span style={{ fontWeight: 700, color: '#10b981', fontSize: '1.05rem' }}>
-                    {agent.priceXLM} XLM
+                    {agent.priceUSDC} USDC
                   </span>
                   <span className="text-muted" style={{ fontSize: '0.75rem', marginLeft: '0.3rem' }}>
                     / request
@@ -203,7 +203,7 @@ export default function Marketplace({ onPurchase, onMPPInvoke, disabled, activeM
                   gap: '0.4rem',
                 }}>
                   <CheckCircle2 size={12} />
-                  MPP Channel Active · {parseFloat(activeSession.remainingBudget || 0).toFixed(4)} XLM remaining
+                  MPP Channel Active · {parseFloat(activeSession.remainingBudget || 0).toFixed(4)} USDC remaining
                 </div>
               )}
             </div>

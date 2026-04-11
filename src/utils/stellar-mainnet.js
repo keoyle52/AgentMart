@@ -34,7 +34,7 @@ const USDC_ASSET = new Asset(
 
 // Low-level payment builders
 
-async function buildPaymentTx(sourcePublicKey, destinationAddress, amountXLM) {
+async function buildPaymentTx(sourcePublicKey, destinationAddress, amountUSDC) {
   const account = await server.loadAccount(sourcePublicKey);
   return new TransactionBuilder(account, {
     fee: await server.fetchBaseFee(),
@@ -44,7 +44,7 @@ async function buildPaymentTx(sourcePublicKey, destinationAddress, amountXLM) {
       Operation.payment({
         destination: destinationAddress,
         asset: USDC_ASSET,
-        amount: amountXLM.toString(),
+        amount: amountUSDC.toString(),
       })
     )
     .addMemo(Memo.text('x402:agentmart'))
@@ -52,9 +52,9 @@ async function buildPaymentTx(sourcePublicKey, destinationAddress, amountXLM) {
     .build();
 }
 
-async function payWithAutonomousKey(secretKey, destinationAddress, amountXLM) {
+async function payWithAutonomousKey(secretKey, destinationAddress, amountUSDC) {
   const sourceKeypair = Keypair.fromSecret(secretKey);
-  const tx = await buildPaymentTx(sourceKeypair.publicKey(), destinationAddress, amountXLM);
+  const tx = await buildPaymentTx(sourceKeypair.publicKey(), destinationAddress, amountUSDC);
   tx.sign(sourceKeypair);
   const response = await server.submitTransaction(tx);
   return response.hash;
@@ -135,13 +135,13 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
 
 // MPP Channel Flow
 
-export async function openMPPSession(agentId, publicKey, maxBudgetXLM, onStep) {
-  onStep({ label: `Opening MPP payment channel (budget: ${maxBudgetXLM} XLM)...`, status: 'pending' });
+export async function openMPPSession(agentId, publicKey, maxBudgetUSDC, onStep) {
+  onStep({ label: `Opening MPP payment channel (budget: ${maxBudgetUSDC} USDC)...`, status: 'pending' });
 
   const res = await fetch(`${BACKEND_URL}/api/mpp/open`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agentId, senderPublicKey: publicKey, maxBudgetXLM }),
+    body: JSON.stringify({ agentId, senderPublicKey: publicKey, maxBudgetXLM: maxBudgetUSDC }),
   });
 
   const data = await res.json();
@@ -164,9 +164,9 @@ export async function invokeMPPAgent(sessionId, onStep) {
   if (!res.ok) throw new Error(data.error || 'MPP invoke failed');
 
   onStep({
-    label: `Micropayment #${data.micropayment.sequence} — ${data.micropayment.amountXLM} XLM (off-chain, no fee)`,
+    label: `Micropayment #${data.micropayment.sequence} — ${data.micropayment.amountUSDC} USDC (off-chain, no fee)`,
     status: 'success',
-    data: { result: data.result, remainingBudget: data.remainingBudgetXLM, protocol: 'mpp' },
+    data: { result: data.result, remainingBudget: data.remainingBudgetUSDC, protocol: 'mpp' },
   });
 
   return data;
@@ -185,7 +185,7 @@ export async function closeMPPSession(sessionId, onStep) {
   if (!res.ok) throw new Error(data.error || 'Failed to close MPP session');
 
   onStep({
-    label: `MPP session closed — ${data.summary.totalCalls} calls, ${data.summary.totalSpentXLM} XLM total`,
+    label: `MPP session closed — ${data.summary.totalCalls} calls, ${data.summary.totalSpentUSDC} USDC total`,
     status: 'success',
     data: data.summary,
   });
@@ -195,9 +195,20 @@ export async function closeMPPSession(sessionId, onStep) {
 // Balance helpers
 
 export async function fetchBalance(publicKey) {
-  const account = await server.loadAccount(publicKey);
-  const native = account.balances.find((b) => b.asset_type === 'native');
-  return native ? parseFloat(native.balance) : 0;
+  try {
+    const account = await server.loadAccount(publicKey);
+    const native = account.balances.find((b) => b.asset_type === 'native');
+    const usdc = account.balances.find(
+      (b) => b.asset_code === 'USDC' && b.asset_issuer === 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN'
+    );
+    return {
+      native: native ? parseFloat(native.balance) : 0,
+      usdc: usdc ? parseFloat(usdc.balance) : 0,
+    };
+  } catch (err) {
+    console.error('Fetch balance failed:', err);
+    return { native: 0, usdc: 0 };
+  }
 }
 
 export { server };

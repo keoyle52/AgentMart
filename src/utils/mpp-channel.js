@@ -38,9 +38,9 @@ const networkPassphrase = STELLAR_NETWORK === 'PUBLIC' ? Networks.PUBLIC : Netwo
  * In a real MPP implementation, this signed message proves the cumulative
  * amount owed to the channel recipient without hitting the blockchain.
  */
-function signMicropaymentMessage(keypairOrNull, channelId, sequence, cumulativeXLM) {
-  // Format: "mpp:{channelId}:{sequence}:{cumulativeXLM}"
-  const payload = `mpp:${channelId}:${sequence}:${cumulativeXLM}`;
+function signMicropaymentMessage(keypairOrNull, channelId, sequence, cumulativeUSDC) {
+  // Format: "mpp:{channelId}:{sequence}:{cumulativeUSDC}"
+  const payload = `mpp:${channelId}:${sequence}:${cumulativeUSDC}`;
 
   if (keypairOrNull) {
     // sign as bytes and return hex-encoded signature
@@ -58,8 +58,8 @@ function signMicropaymentMessage(keypairOrNull, channelId, sequence, cumulativeX
  * Sends a Stellar transaction as the "session intent" signal —
  * this is the on-chain proof that a channel was opened with a max budget.
  */
-export async function openMPPChannel({ agentId, publicKey, secretKey, maxBudgetXLM, onStep }) {
-  onStep({ label: `Opening MPP channel — max budget: ${maxBudgetXLM} XLM`, status: 'pending' });
+export async function openMPPChannel({ agentId, publicKey, secretKey, maxBudgetUSDC, onStep }) {
+  onStep({ label: `Opening MPP channel — max budget: ${maxBudgetUSDC} USDC`, status: 'pending' });
 
   // 1. Tell the backend to create a session
   const res = await fetch(`${BACKEND_URL}/api/mpp/open`, {
@@ -68,7 +68,7 @@ export async function openMPPChannel({ agentId, publicKey, secretKey, maxBudgetX
     body: JSON.stringify({
       agentId,
       senderPublicKey: publicKey,
-      maxBudgetXLM: maxBudgetXLM.toString(),
+      maxBudgetXLM: maxBudgetUSDC.toString(), // Variable rename on backend is still maxBudgetXLM for compatibility but mapped to USDC
     }),
   });
 
@@ -76,7 +76,7 @@ export async function openMPPChannel({ agentId, publicKey, secretKey, maxBudgetX
   if (!res.ok) throw new Error(session.error || 'Failed to open MPP session');
 
   onStep({
-    label: `Channel open — session ${session.sessionId.slice(0, 8)}... (budget: ${maxBudgetXLM} XLM)`,
+    label: `Channel open — session ${session.sessionId.slice(0, 8)}... (budget: ${maxBudgetUSDC} USDC)`,
     status: 'success',
     data: session,
   });
@@ -84,11 +84,11 @@ export async function openMPPChannel({ agentId, publicKey, secretKey, maxBudgetX
   return {
     sessionId: session.sessionId,
     agentId,
-    maxBudgetXLM,
-    remainingBudget: maxBudgetXLM,
+    maxBudgetUSDC,
+    remainingBudget: maxBudgetUSDC,
     keypair: secretKey ? Keypair.fromSecret(secretKey) : null,
     micropaymentCount: 0,
-    cumulativeXLM: 0,
+    cumulativeUSDC: 0,
   };
 }
 
@@ -97,13 +97,13 @@ export async function openMPPChannel({ agentId, publicKey, secretKey, maxBudgetX
  * No blockchain transaction is submitted here — that's the whole point of MPP.
  */
 export async function sendMicropayment({ channelState, onStep }) {
-  const { sessionId, keypair, micropaymentCount, cumulativeXLM } = channelState;
+  const { sessionId, keypair, micropaymentCount, cumulativeUSDC } = channelState;
 
   const nextSeq = micropaymentCount + 1;
 
   // Build the signed micropayment message (off-chain)
   // In production this state gets submitted to Soroban to claim funds
-  const signedMsg = signMicropaymentMessage(keypair, sessionId, nextSeq, cumulativeXLM);
+  const signedMsg = signMicropaymentMessage(keypair, sessionId, nextSeq, cumulativeUSDC);
 
   onStep({
     label: `Micropayment #${nextSeq} — signed off-chain (0 fees)`,
@@ -120,7 +120,7 @@ export async function sendMicropayment({ channelState, onStep }) {
   if (!res.ok) throw new Error(data.error || 'MPP invoke failed');
 
   onStep({
-    label: `Micropayment #${data.micropayment.sequence} signed & accepted — ${data.micropayment.amountXLM} XLM (off-chain, zero fee)`,
+    label: `Micropayment #${data.micropayment.sequence} signed & accepted — ${data.micropayment.amountUSDC} USDC (off-chain, zero fee)`,
     status: 'success',
     data: { result: data.result, remainingBudget: data.remainingBudgetXLM, protocol: 'mpp' },
   });
@@ -128,7 +128,7 @@ export async function sendMicropayment({ channelState, onStep }) {
   return {
     ...channelState,
     micropaymentCount: nextSeq,
-    cumulativeXLM: data.micropayment.cumulativeXLM,
+    cumulativeUSDC: data.micropayment.cumulativeUSDC,
     remainingBudget: parseFloat(data.remainingBudgetXLM),
     lastResult: data.result,
   };
@@ -142,12 +142,12 @@ export async function sendMicropayment({ channelState, onStep }) {
  * contract's close_channel() function which settles the net payment.
  */
 export async function closeChannel({ channelState, onStep }) {
-  const { sessionId, keypair, micropaymentCount, cumulativeXLM } = channelState;
+  const { sessionId, keypair, micropaymentCount, cumulativeUSDC } = channelState;
 
   // Step 1: Perform On-Chain Settlement (If there's a balance to pay)
   let settleTxHash = null;
-  if (cumulativeXLM > 0) {
-    onStep({ label: `Settling ${cumulativeXLM} XLM on-chain via Stellar Mainnet...`, status: 'pending' });
+  if (cumulativeUSDC > 0) {
+    onStep({ label: `Settling ${cumulativeUSDC} USDC on-chain via Stellar Mainnet...`, status: 'pending' });
     
     try {
       const sourceAccount = await server.loadAccount(keypair.publicKey());
@@ -158,8 +158,8 @@ export async function closeChannel({ channelState, onStep }) {
         .addOperation(
           Operation.payment({
             destination: SETTLEMENT_ADDRESS,
-            asset: Asset.native(),
-            amount: cumulativeXLM.toString(),
+            asset: new Asset('USDC', 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN'),
+            amount: cumulativeUSDC.toString(),
           })
         )
         .addMemo(Memo.text(`MPP-SETTLE:${sessionId.slice(0, 8)}`))
@@ -184,7 +184,7 @@ export async function closeChannel({ channelState, onStep }) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 
       sessionId, 
-      finalSignature: signMicropaymentMessage(keypair, sessionId, micropaymentCount, cumulativeXLM),
+      finalSignature: signMicropaymentMessage(keypair, sessionId, micropaymentCount, cumulativeUSDC),
       settleTxHash
     }),
   });
@@ -193,7 +193,7 @@ export async function closeChannel({ channelState, onStep }) {
   if (!res.ok) throw new Error(data.error || 'Failed to close channel');
 
   onStep({
-    label: `Channel settled — ${data.summary.totalCalls} calls, ${data.summary.totalSpentXLM} XLM total, ${data.summary.savedOnFeesXLM} XLM saved in fees`,
+    label: `Channel settled — ${data.summary.totalCalls} calls, ${data.summary.totalSpentUSDC} USDC total, ${data.summary.savedOnFeesUSDC} USDC saved in fees`,
     status: 'success',
     data: data.summary,
   });

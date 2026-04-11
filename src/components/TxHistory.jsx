@@ -7,7 +7,7 @@ export default function TxHistory({ logs }) {
   const [expanded, setExpanded] = useState(null);
 
   // pull out entries that have a real tx hash or represent a completed payment
-  const txs = logs.filter(l => l.explorerUrl || (l.type === 'success' && l.message?.includes('XLM')));
+  const txs = logs.filter(l => l.explorerUrl || (l.type === 'success' && (l.message?.includes('XLM') || l.message?.includes('USDC'))));
 
   if (txs.length === 0) {
     return null; // nothing to show yet, don't clutter the UI

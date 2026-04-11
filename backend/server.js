@@ -45,8 +45,7 @@ const AGENTS = {
     id: 'web-scraper',
     name: 'Web Scraper Agent',
     description: 'Extracts structured data from any public URL.',
-    priceXLM: '0.001',
-    priceUSD: '0.001', // Standardized to USD/USDC for x402
+    priceUSDC: '0.01', 
     protocol: 'x402',
     invoke: async (input) => {
       const targetUrl = input?.url || 'https://stellar.org';
@@ -81,8 +80,7 @@ const AGENTS = {
     id: 'price-oracle',
     name: 'Price Oracle Agent',
     description: 'Delivers real-time asset prices from aggregated sources.',
-    priceXLM: '0.0005',
-    priceUSD: '0.0005',
+    priceUSDC: '0.005',
     protocol: 'x402',
     invoke: async () => {
       try {
@@ -124,8 +122,7 @@ const AGENTS = {
     id: 'security-auditor',
     name: 'Security Auditor Agent',
     description: 'Scans Soroban smart contracts for vulnerabilities.',
-    priceXLM: '0.02',
-    priceUSD: '0.02',
+    priceUSDC: '0.20',
     protocol: 'x402',
     invoke: async () => ({
       status: 'success',
@@ -144,7 +141,7 @@ const AGENTS = {
     id: 'translator',
     name: 'Realtime Translator Agent',
     description: 'Context-aware A2A language translation at machine speed.',
-    priceXLM: '0.001',
+    priceUSDC: '0.01',
     protocol: 'mpp',
     invoke: async () => ({
       status: 'success',
@@ -161,8 +158,7 @@ const AGENTS = {
     id: 'code-executor',
     name: 'Sandboxed Code Executor',
     description: 'Runs isolated code snippets and returns output.',
-    priceXLM: '0.005',
-    priceUSD: '0.005',
+    priceUSDC: '0.05',
     protocol: 'x402',
     invoke: async () => ({
       status: 'success',
@@ -180,7 +176,7 @@ const AGENTS = {
     id: 'image-generator',
     name: 'AI Image Generator',
     description: 'Generates images from text prompts via A2A inference.',
-    priceXLM: '0.01',
+    priceUSDC: '0.10',
     protocol: 'mpp',
     invoke: async () => ({
       status: 'success',
@@ -211,7 +207,8 @@ Object.values(AGENTS).forEach(agent => {
     x402Routes[`POST /api/agents/${agent.id}/invoke`] = {
       accepts: [{
         scheme: 'exact',
-        price: agent.priceUSD, // Switched to USDC-aligned pricing
+        price: agent.priceUSDC, 
+        asset: 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
         network: x402NetworkIdentifier,
         payTo: SETTLEMENT_ADDRESS,
       }],
@@ -377,8 +374,8 @@ app.post('/api/mpp/open', (req, res) => {
     sessionId,
     agentId,
     senderPublicKey,
-    maxBudgetXLM: parseFloat(maxBudgetXLM),
-    spentXLM: 0,
+    maxBudgetUSDC: parseFloat(maxBudgetXLM),
+    spentUSDC: 0,
     micropayments: [],
     openedAt: new Date().toISOString(),
     openTxHash: openTxHash || null,
@@ -408,25 +405,25 @@ app.post('/api/mpp/invoke', async (req, res) => {
   const agent = AGENTS[session.agentId];
   if (!agent) return res.status(404).json({ error: 'Agent not found' });
 
-  const cost = parseFloat(agent.priceXLM);
-  if (session.spentXLM + cost > session.maxBudgetXLM) {
+  const cost = parseFloat(agent.priceUSDC);
+  if (session.spentUSDC + cost > session.maxBudgetUSDC) {
     return res.status(402).json({
       error: 'Channel budget exhausted',
-      spentXLM: session.spentXLM,
-      maxBudgetXLM: session.maxBudgetXLM,
+      spentUSDC: session.spentUSDC,
+      maxBudgetUSDC: session.maxBudgetUSDC,
     });
   }
 
   // Record micropayment (off-chain)
   const payment = {
     sequence: session.micropayments.length + 1,
-    amountXLM: cost,
-    cumulativeXLM: session.spentXLM + cost,
+    amountUSDC: cost,
+    cumulativeUSDC: session.spentUSDC + cost,
     signedMessage: signedPaymentMessage || 'off-chain-signed',
     timestamp: new Date().toISOString(),
   };
   session.micropayments.push(payment);
-  session.spentXLM += cost;
+  session.spentUSDC += cost;
 
   const serviceResult = await agent.invoke(req.body);
 
@@ -469,8 +466,8 @@ app.post('/api/mpp/close', (req, res) => {
     settleTxHash,
     summary: {
       totalCalls: session.micropayments.length,
-      totalSpentXLM: session.spentXLM.toFixed(6),
-      savedOnFeesXLM: (session.micropayments.length * 0.00001 - 0.00001).toFixed(6),
+      totalSpentUSDC: session.spentUSDC.toFixed(6),
+      savedOnFeesUSDC: (session.micropayments.length * 0.00001 - 0.00001).toFixed(6),
       openedAt: session.openedAt,
       closedAt: session.closedAt,
     },
@@ -496,6 +493,7 @@ async function verifyMPPSettlement(sessionId, txHash, expectedAmount) {
       (op) =>
         op.type === 'payment' &&
         op.to === SETTLEMENT_ADDRESS &&
+        op.asset_code === 'USDC' &&
         parseFloat(op.amount) >= parseFloat(expectedAmount.toFixed(7))
     );
 

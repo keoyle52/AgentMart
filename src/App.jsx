@@ -13,12 +13,12 @@ import { Keypair } from '@stellar/stellar-sdk';
 
 // MPP agents registered in the marketplace (mirrors backend AGENTS)
 const MPP_AGENTS = [
-  { id: 'translator', name: 'Realtime Translator', priceXLM: '0.001' },
-  { id: 'image-generator', name: 'AI Image Generator', priceXLM: '0.01' },
+  { id: 'translator', name: 'Realtime Translator', priceUSDC: '0.01' },
+  { id: 'image-generator', name: 'AI Image Generator', priceUSDC: '0.10' },
 ];
 
 function App() {
-  const [balance, setBalance] = useState(0);
+  const [balances, setBalances] = useState({ xlm: 0, usdc: 0 });
   const [address, setAddress] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [secretKey, setSecretKey] = useState(null);
@@ -77,7 +77,7 @@ function App() {
       setIsConnected(false);
       setAddress(null);
       setSecretKey(null);
-      setBalance(0);
+      setBalances({ xlm: 0, usdc: 0 });
       setActiveMPPSessions({});
       addLog('Wallet disconnected or invalid mode.', 'warning');
       return;
@@ -88,8 +88,8 @@ function App() {
       setSecretKey(secKey);
       setIsConnected(true);
       setAddress(kp.publicKey());
-      const bal = await fetchBalance(kp.publicKey());
-      setBalance(bal);
+      const bals = await fetchBalance(kp.publicKey());
+      setBalances(bals);
       addLog(`Autonomous Agent key linked. Address: ${kp.publicKey().substring(0, 8)}...`, 'info');
       addLog('Agent is running in autonomous mode — no human approval required per tx.', 'default');
     } catch {
@@ -144,7 +144,7 @@ function App() {
       // Refresh balance after payment
       try {
         const updated = await fetchBalance(address);
-        setBalance(updated);
+        setBalances(updated);
       } catch {
         // block empty, ignoring this safely
       }
@@ -163,14 +163,14 @@ function App() {
     addLog(`━━━ Opening MPP channel for ${agent.name} ━━━`, 'default');
 
     try {
-      const MAX_BUDGET = 0.1;
+      const MAX_BUDGET = 0.5; // 0.5 USDC
       // reset steps for this agent
       setMppSteps((prev) => ({ ...prev, [agent.id]: [] }));
       const channelState = await openMPPChannel({
         agentId: agent.id,
         publicKey: address,
         secretKey, // signs off-chain micropayments autonomously
-        maxBudgetXLM: MAX_BUDGET,
+        maxBudgetUSDC: MAX_BUDGET,
         onStep: (step) => {
           addLog(step.label, step.status);
           addMppStep(agent.id, step);
@@ -262,7 +262,7 @@ function App() {
           <WalletConnect
             onWalletConnected={handleWalletConnected}
             address={address}
-            balance={balance}
+            balances={balances}
             isConnected={isConnected}
           />
 
