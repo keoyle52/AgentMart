@@ -100,7 +100,15 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   }
 
   const paymentDetails = paymentConfig.accepts[0]; 
-  const amount = paymentDetails.amount || paymentDetails.price;
+  let amount = paymentDetails.amount || paymentDetails.price;
+  
+  // Official x402 Stellar headers use stroops (10^-7 units)
+  // We must convert them back to decimal units for the Stellar SDK
+  if (amount && !amount.toString().includes('.')) {
+    const rawAmount = parseFloat(amount) / 10000000;
+    amount = rawAmount.toFixed(7).replace(/\.?0+$/, ''); // Format as 0.005 etc.
+  }
+
 
   onStep({
     label: `x402 Handshake: Payment of ${amount} USDC requested`,
