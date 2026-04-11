@@ -161,22 +161,42 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
 
   // Step 3 — Wait for propagation and submit proof
   // Facilitators usually need a few seconds for Horizon to index the tx
-  await new Promise((r) => setTimeout(r, 4000));
-  onStep({ label: 'Verifying proof via official x402 middleware...', status: 'pending' });
+  await new Promise((r) => setTimeout(r, 6000));
+  
+  let finalRes;
+  let finalData;
+  const maxRetries = 3;
 
-  const finalRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'PAYMENT-SIGNATURE': txHash // Reverting to spec-compliant header
-    },
-    body: JSON.stringify({ agentId, txHash }), // Passing txHash in body too for convenience
-  });
+  for (let i = 0; i < maxRetries; i++) {
+    onStep({ 
+      label: `Verifying proof via x402 middleware (Attempt ${i + 1}/${maxRetries})...`, 
+      status: 'pending' 
+    });
+    
+    // Official x402 spec: PAYMENT-SIGNATURE should be a Base64-encoded JSON object containing the proof
+    // This resolves the "SyntaxError: Unexpected token" on the backend.
+    const proof = btoa(JSON.stringify({ transaction: txHash }));
 
-  const finalData = await finalRes.json();
+    finalRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'PAYMENT-SIGNATURE': proof
+      },
+      body: JSON.stringify({ agentId, txHash }),
+    });
+
+    finalData = await finalRes.json().catch(() => ({}));
+    if (finalRes.ok) break;
+    
+    if (i < maxRetries - 1) {
+      onStep({ label: `Retrying in 5s (Horizon indexing lag)...`, status: 'warning' });
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
 
   if (!finalRes.ok) {
-    throw new Error(finalData.error || 'Official verification failed');
+    throw new Error(finalData.error || 'Official verification failed after multiple attempts');
   }
 
   // Step 4 — Service delivered
