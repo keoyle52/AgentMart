@@ -284,6 +284,23 @@ const x402Middleware = async (req, res, next) => {
     });
   }
 
+  // Diagnostic Interceptor
+  const originalSend = res.send;
+  res.send = function (body) {
+    if (res.statusCode >= 400 && req.headers['payment-signature']) {
+      try {
+        const signature = req.headers['payment-signature'];
+        const decoded = JSON.parse(Buffer.from(signature, 'base64').toString());
+        console.warn(`[x402 Trace] Failure on path: ${req.path}`);
+        console.warn(`[x402 Trace] Payload Signature:`, JSON.stringify(decoded, null, 2));
+        console.warn(`[x402 Trace] Rejection Body:`, body);
+      } catch (e) {
+        console.warn(`[x402 Trace] Failed to decode signature: ${e.message}`);
+      }
+    }
+    return originalSend.apply(res, arguments);
+  };
+
   return officialHandler(req, res, next);
 };
 
