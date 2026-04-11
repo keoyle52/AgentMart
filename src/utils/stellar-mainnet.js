@@ -7,7 +7,9 @@ import {
   Horizon,
   Address,
   nativeToScVal,
-  xdr
+  xdr,
+  rpc,
+  Contract
 } from '@stellar/stellar-sdk';
 
 const BASE_FEE = '100'; // Default base fee
@@ -21,10 +23,8 @@ const horizonUrl = 'https://horizon.stellar.org';
 const networkPassphrase = Networks.PUBLIC;
 
 const server = new Horizon.Server(horizonUrl);
-
-// Official USDC Asset on Stellar Mainnet (Circle)
-// Official USDC Soroban Contract ID on Stellar Mainnet
-const USDC_ASSET = 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75';
+const rpcServer = new rpc.Server('https://soroban-rpc.mainnet.stellar.org');
+const usdcContract = new Contract('CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75');
 
 // Wallet — Autonomous (secret-key) mode only
 
@@ -32,78 +32,41 @@ const USDC_ASSET = 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75';
 
 /**
  * Builds a Soroban Transaction for USDC transfer (Managed Relay Compliance).
- * Does NOT sign the transaction envelope.
+ * Uses rpcServer.prepareTransaction to automatically hydrate auth entries and resources.
  */
 async function buildSorobanTransferTx(secretKey, destination, amountUSDC) {
   const sourceKeypair = Keypair.fromSecret(secretKey);
   const from = sourceKeypair.publicKey();
   const account = await server.loadAccount(from);
 
-  // Fetch current ledger for expiration offset
-  let currentLedger = 0;
-  try {
-    const root = await fetch(`${horizonUrl}`).then(r => r.json());
-    currentLedger = root.core_latest_ledger;
-  } catch (e) {
-    console.warn('Failed to fetch ledger, using fallback', e);
-    currentLedger = 50000000; // Fallback
-  }
-  const expiredLedger = currentLedger + 15;
-
-  // 1. Format Arguments as ScVals (Stellar Asset Contract 'transfer' spec)
-  // USDC uses 7 decimals (same as XLM), but Soroban i128 expects stroops.
+  // 1. Format Arguments (USDC decimals: 7)
   const amountStroops = BigInt(Math.round(parseFloat(amountUSDC) * 10000000));
-  const args = [
-    nativeToScVal(Address.fromString(from)),
-    nativeToScVal(Address.fromString(destination)),
-    nativeToScVal(amountStroops, { type: 'i128' })
-  ];
+  const fromScVal = nativeToScVal(from, { type: 'address' });
+  const toScVal = nativeToScVal(destination, { type: 'address' });
+  const amountScVal = nativeToScVal(amountStroops, { type: 'i128' });
 
-  // 2. Build the Host Function Operation
-  const op = Operation.invokeHostFunction({
-    func: xdr.HostFunction.hostFunctionTypeInvokeContract(
-      new xdr.InvokeContractArgs({
-        contractAddress: Address.fromString(USDC_ASSET).toScAddress(),
-        functionName: 'transfer',
-        args
-      })
-    ),
-    auth: [] // Will attach signed auth entry below
-  });
-
-  // 3. Construct and Sign Authorization Entry (The 'Sponsored' Sign-off)
-  const authEntry = TransactionBuilder.authorizeEntry(
-    op.func().invokeContract().contractAddress(),
-    op.func().invokeContract().functionName(),
-    op.func().invokeContract().args(),
-    expiredLedger,
-    { source: from, networkPassphrase }
-  );
-
-  // sign the auth entry hash
-  const signature = sourceKeypair.sign(authEntry.toXDR());
-  authEntry.credentials().address().signature(xdr.ScVal.scvBytes(signature));
-
-  // Attach signed auth entry to operation
-  op.auth = [authEntry];
-
-  // 4. Build Final Transaction (Unsigned Envelope)
-  return new TransactionBuilder(account, {
-    fee: '100000', // Sponsored fee buffer
+  // 2. Build the Initial Transaction via Contract Class
+  const tx = new TransactionBuilder(account, {
+    fee: '100000', // Base fee to be refined by simulation
     networkPassphrase,
   })
-    .addOperation(op)
+    .addOperation(usdcContract.call('transfer', fromScVal, toScVal, amountScVal))
     .setTimeout(120)
     .build();
+
+  // 3. Simulate and Prepare (Hydrates fossils, footprints, and adds auth entries)
+  const preparedTx = await rpcServer.prepareTransaction(tx);
+  return preparedTx;
 }
 
 async function payWithAutonomousKey(secretKey, destinationAddress, amountUSDC) {
+  const sourceKeypair = Keypair.fromSecret(secretKey);
   const tx = await buildSorobanTransferTx(secretKey, destinationAddress, amountUSDC);
   
-  // NOTE: Per Relayer rules, we do NOT call tx.sign(). 
-  // The signature is inside the auth entry.
+  // 4. Sign ONLY the Auth Entries
+  // Per OpenZeppelin relayer rules, the main envelope must remain unsigned (sponsored).
+  tx.signAuthEntries(sourceKeypair);
   
-  // We return the XDR and Hash for the relayer and UI
   return {
     xdr: tx.toXDR(),
     hash: tx.hash().toString('hex')
