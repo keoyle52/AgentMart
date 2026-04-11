@@ -25,13 +25,11 @@ import {
 const rawUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 const BACKEND_URL = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
 const SETTLEMENT_ADDRESS = 'GCJV64SQP24FBBYMUK5UUK76STPG45XGLVILU3TYNYASDAFFUSET3YY7';
-const STELLAR_NETWORK = import.meta.env.VITE_STELLAR_NETWORK || 'PUBLIC';
+const STELLAR_NETWORK = 'PUBLIC';
 
-const horizonUrl = STELLAR_NETWORK === 'PUBLIC' 
-  ? 'https://horizon.stellar.org' 
-  : 'https://horizon-testnet.stellar.org';
+const horizonUrl = 'https://horizon.stellar.org';
 const server = new Horizon.Server(horizonUrl);
-const networkPassphrase = STELLAR_NETWORK === 'PUBLIC' ? Networks.PUBLIC : Networks.TESTNET;
+const networkPassphrase = Networks.PUBLIC;
 
 /**
  * Sign a micropayment message off-chain.

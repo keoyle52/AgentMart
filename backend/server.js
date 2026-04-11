@@ -14,14 +14,12 @@ if (!global.fetch) {
 }
 
 const app = express();
-const STELLAR_NETWORK = process.env.STELLAR_NETWORK || 'PUBLIC'; // PUBLIC or TESTNET
+const STELLAR_NETWORK = 'PUBLIC'; // Forced to Mainnet
 const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || 'GCJV64SQP24FBBYMUK5UUK76STPG45XGLVILU3TYNYASDAFFUSET3YY7';
 const PORT = process.env.PORT || 3001;
 
 // Intelligent Facilitator URL selection
-const defaultFacilitatorUrl = STELLAR_NETWORK === 'PUBLIC' 
-  ? 'https://channels.openzeppelin.com/x402'
-  : 'https://channels.openzeppelin.com/testnet/x402';
+const defaultFacilitatorUrl = 'https://channels.openzeppelin.com/x402';
 
 const X402_FACILITATOR_URL = (process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl).replace(/\/$/, '');
 const X402_FACILITATOR_API_KEY = (process.env.X402_FACILITATOR_API_KEY || '').trim();
@@ -33,13 +31,9 @@ console.log(`[Config] API Key: ${X402_FACILITATOR_API_KEY ? X402_FACILITATOR_API
 // --- x402 Protocol State ---
 let isX402Initialized = false;
 let x402InitError = null;
-const activeNetworkId = STELLAR_NETWORK === 'PUBLIC' ? 'public' : 'testnet';
+const activeNetworkId = 'stellar:pubnet';
 
-const horizonServer = new Horizon.Server(
-  STELLAR_NETWORK === 'PUBLIC'
-    ? 'https://horizon.stellar.org'
-    : 'https://horizon-testnet.stellar.org'
-);
+const horizonServer = new Horizon.Server('https://horizon.stellar.org');
 
 // Persistent nonce store (Used for legacy fallback or external tracking if needed)
 const pendingNonces = new Map();
@@ -271,7 +265,7 @@ const facilitatorClient = new HTTPFacilitatorClient({
 const x402Server = new x402ResourceServer([facilitatorClient]);
 
 // CRITICAL: Point the scheme to the correct Horizon server for verification
-const horizonUrl = STELLAR_NETWORK === 'PUBLIC' ? 'https://horizon.stellar.org' : 'https://horizon-testnet.stellar.org';
+const horizonUrl = 'https://horizon.stellar.org';
 x402Server.register(activeNetworkId, new ExactStellarScheme({ horizonUrl }));
 
 // Rotaları (routes) burada HTTP sunucusuna bağlıyoruz

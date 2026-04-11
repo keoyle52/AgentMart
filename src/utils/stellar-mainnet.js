@@ -12,15 +12,11 @@ const BASE_FEE = '100'; // Default base fee
 
 const rawUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 const BACKEND_URL = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
-const STELLAR_NETWORK = import.meta.env.VITE_STELLAR_NETWORK || 'PUBLIC';
+const STELLAR_NETWORK = 'PUBLIC';
 
-const horizonUrl =
-  STELLAR_NETWORK === 'PUBLIC'
-    ? 'https://horizon.stellar.org'
-    : 'https://horizon-testnet.stellar.org';
+const horizonUrl = 'https://horizon.stellar.org';
 
-const networkPassphrase =
-  STELLAR_NETWORK === 'PUBLIC' ? Networks.PUBLIC : Networks.TESTNET;
+const networkPassphrase = Networks.PUBLIC;
 
 const server = new Horizon.Server(horizonUrl);
 
@@ -177,7 +173,7 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
     status: 'success',
     data: {
       txHash,
-      explorerUrl: `https://stellar.expert/explorer/${STELLAR_NETWORK === 'PUBLIC' ? 'public' : 'testnet'}/tx/${txHash}`,
+      explorerUrl: `https://stellar.expert/explorer/public/tx/${txHash}`,
       result: finalData.result,
       priceUSDC: '0.001',
     },
