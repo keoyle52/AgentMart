@@ -264,11 +264,8 @@ httpServer.initialize()
   })
   .catch(err => {
     x402InitError = err.message;
-    console.error('❌ x402 Protocol Initialization Failed (Check your X402_FACILITATOR_API_KEY):');
+    console.error('❌ x402 Auth Failed. Lütfen OpenZeppelin Panelinden PUBLIC (Mainnet) uyumlu yeni bir API Key alıp almadığınızı kontrol edin.');
     console.error(`   Error Detail: ${err.message}`);
-    if (err.message.includes('401')) {
-      console.error('   Hint: Your Facilitator API Key was rejected (Unauthorized). Please verify it in your environment variables.');
-    }
   });
 
 const x402Middleware = async (req, res, next) => {
@@ -302,24 +299,6 @@ const x402Middleware = async (req, res, next) => {
 };
 
 app.use(x402Middleware);
-
-// 4. Background Initialization (Official .initialize() call)
-async function initializeX402() {
-  console.log('🔄 Initializing x402 protocol in background...');
-  try {
-    await httpServer.initialize();
-    isX402Initialized = true;
-    x402InitError = null;
-    console.log('✅ x402 Protocol synchronized and ready.');
-  } catch (err) {
-    x402InitError = err.message;
-    isX402Initialized = false;
-    console.error(`❌ x402 Initialization failed: ${err.message}`);
-    setTimeout(initializeX402, 10000);
-  }
-}
-
-initializeX402();
 
 // Refactored Agent Invocation Gate (No longer needs manual verification logic)
 app.post('/api/agents/:agentId/invoke', async (req, res) => {
