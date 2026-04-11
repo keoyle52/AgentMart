@@ -21,8 +21,8 @@ const PORT = process.env.PORT || 3001;
 // Intelligent Facilitator URL selection
 const defaultFacilitatorUrl = 'https://channels.openzeppelin.com/x402';
 
-const X402_FACILITATOR_URL = (process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl).replace(/\/$/, '');
-const X402_FACILITATOR_API_KEY = (process.env.X402_FACILITATOR_API_KEY || '').trim();
+const X402_FACILITATOR_URL = (process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl).trim().replace(/\/$/, '');
+const X402_FACILITATOR_API_KEY = (process.env.X402_FACILITATOR_API_KEY || 'a3bb5056-5f0f-4c2f-8128-32b9b1e1b3d5').trim();
 
 console.log(`[Config] Network: ${STELLAR_NETWORK}`);
 console.log(`[Config] Facilitator: ${X402_FACILITATOR_URL}`);
@@ -241,13 +241,10 @@ Object.values(AGENTS).forEach(agent => {
 // 1. Authenticated Facilitator Client
 const facilitatorClient = new HTTPFacilitatorClient({
   url: X402_FACILITATOR_URL,
-  createAuthHeaders: async () => {
-    // Standard x402 v2 resilient auth headers
-    return { 
-      'Authorization': `Bearer ${X402_FACILITATOR_API_KEY}`,
-      'X-API-Key': X402_FACILITATOR_API_KEY
-    };
-  }
+  createAuthHeaders: async () => ({
+    'Authorization': `Bearer ${X402_FACILITATOR_API_KEY}`,
+    'X-API-Key': X402_FACILITATOR_API_KEY
+  })
 });
 
 // 2. Official x402 Stack Initialization (Professional Protocol Setup)
@@ -259,6 +256,7 @@ const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
 const officialHandler = paymentMiddlewareFromHTTPServer(httpServer, null, null, false);
 
 // 4. Protocol Lifecycle Initialization
+console.log('DEBUG: Key Uzunluğu:', X402_FACILITATOR_API_KEY.length);
 httpServer.initialize()
   .then(() => {
     isX402Initialized = true;
