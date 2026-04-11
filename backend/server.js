@@ -18,15 +18,11 @@ const STELLAR_NETWORK = 'PUBLIC'; // Forced to Mainnet
 const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || 'GCJV64SQP24FBBYMUK5UUK76STPG45XGLVILU3TYNYASDAFFUSET3YY7';
 const PORT = process.env.PORT || 3001;
 
-// Intelligent Facilitator URL selection
-const defaultFacilitatorUrl = 'https://channels.openzeppelin.com';
-
-const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://channels.openzeppelin.com/x402';
-const X402_FACILITATOR_API_KEY = process.env.X402_FACILITATOR_API_KEY || '';
+// Intelligent Facilitator Selection
+// (AgentMart uses DecentralizedLocalFacilitator to bypass remote servers entirely)
 
 console.log(`[Config] Network: ${STELLAR_NETWORK}`);
-console.log(`[Config] Facilitator: ${X402_FACILITATOR_URL}`);
-console.log(`[Config] API Key: ${X402_FACILITATOR_API_KEY ? X402_FACILITATOR_API_KEY.substring(0, 8) + '...' : 'MISSING'}`);
+console.log(`[Config] Facilitator: Decentralized Local Node Validation`);
 
 // --- x402 Protocol State ---
 let isX402Initialized = false;
@@ -309,7 +305,6 @@ const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
 const officialHandler = paymentMiddlewareFromHTTPServer(httpServer, null, null, false);
 
 // 4. Protocol Lifecycle Initialization
-console.log('DEBUG: Key Uzunluğu:', X402_FACILITATOR_API_KEY.length);
 httpServer.initialize()
   .then(() => {
     isX402Initialized = true;
