@@ -5,11 +5,7 @@ import {
   Keypair, 
   Asset, 
   Horizon,
-  Address,
-  nativeToScVal,
-  xdr,
-  rpc,
-  Contract
+  Memo
 } from '@stellar/stellar-sdk';
 
 const BASE_FEE = '100'; // Default base fee
@@ -23,53 +19,46 @@ const horizonUrl = 'https://horizon.stellar.org';
 const networkPassphrase = Networks.PUBLIC;
 
 const server = new Horizon.Server(horizonUrl);
-const rpcServer = new rpc.Server('https://mainnet.sorobanrpc.com');
-const usdcContract = new Contract('CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75');
+const USDC_ASSET = new Asset(
+  'USDC',
+  'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN'
+);
 
 // Wallet — Autonomous (secret-key) mode only
 
 // Low-level payment builders
 
 /**
- * Builds a Soroban Transaction for USDC transfer (Managed Relay Compliance).
- * Uses rpcServer.prepareTransaction to automatically hydrate auth entries and resources.
+ * Builds a classic Stellar Transaction for USDC payment.
  */
-async function buildSorobanTransferTx(secretKey, destination, amountUSDC) {
+async function buildPaymentTx(secretKey, destination, amountUSDC) {
   const sourceKeypair = Keypair.fromSecret(secretKey);
-  const from = sourceKeypair.publicKey();
-  const account = await server.loadAccount(from);
+  const account = await server.loadAccount(sourceKeypair.publicKey());
 
-  // 1. Format Arguments (USDC decimals: 7)
-  const amountStroops = BigInt(Math.round(parseFloat(amountUSDC) * 10000000));
-  const fromScVal = nativeToScVal(from, { type: 'address' });
-  const toScVal = nativeToScVal(destination, { type: 'address' });
-  const amountScVal = nativeToScVal(amountStroops, { type: 'i128' });
-
-  // 2. Build the Initial Transaction via Contract Class
-  const tx = new TransactionBuilder(account, {
-    fee: '100000', // Base fee to be refined by simulation
+  return new TransactionBuilder(account, {
+    fee: await server.fetchBaseFee(),
     networkPassphrase,
   })
-    .addOperation(usdcContract.call('transfer', fromScVal, toScVal, amountScVal))
-    .setTimeout(120)
+    .addOperation(
+      Operation.payment({
+        destination,
+        asset: USDC_ASSET,
+        amount: amountUSDC.toString(),
+      })
+    )
+    .addMemo(Memo.text(`x402-${Date.now()}`))
+    .setTimeout(60)
     .build();
-
-  // 3. Simulate and Prepare (Hydrates fossils, footprints, and adds auth entries)
-  const preparedTx = await rpcServer.prepareTransaction(tx);
-  return preparedTx;
 }
 
 async function payWithAutonomousKey(secretKey, destinationAddress, amountUSDC) {
   const sourceKeypair = Keypair.fromSecret(secretKey);
-  const tx = await buildSorobanTransferTx(secretKey, destinationAddress, amountUSDC);
+  const tx = await buildPaymentTx(secretKey, destinationAddress, amountUSDC);
   
-  // 4. Sign ONLY the Auth Entries
-  // Per OpenZeppelin relayer rules, the main envelope must remain unsigned (sponsored).
-  tx.signAuthEntries(sourceKeypair);
-  
+  tx.sign(sourceKeypair);
+  const response = await server.submitTransaction(tx);
   return {
-    xdr: tx.toXDR(),
-    hash: tx.hash().toString('hex')
+    hash: response.hash
   };
 }
 
@@ -136,24 +125,24 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
 
   onStep({ label: `x402 Handshake: Payment of ${priceValue} USDC requested`, status: 'info' });
 
-  // Step 2 — Pay on-chain (Soroban Native)
-  onStep({ label: `Preparing signed Soroban authorization...`, status: 'pending' });
+  // Step 2 — Pay on-chain (Classic Stellar)
+  onStep({ label: `Submitting on-chain USDC payment...`, status: 'pending' });
   
-  const { xdr: txXdr, hash: txHash } = await payWithAutonomousKey(secretKey, accepted.payTo, priceValue);
-  onStep({ label: `Soroban proof generated.`, status: 'info', data: { txHash } });
+  const { hash: txHash } = await payWithAutonomousKey(secretKey, accepted.payTo, priceValue);
+  onStep({ label: `Payment submitted successfully.`, status: 'info', data: { txHash } });
 
   // Step 3 — Submit official proof
-  onStep({ label: `Waiting for relayer indexing (15s)...`, status: 'pending' });
-  await new Promise(r => setTimeout(r, 15000));
+  onStep({ label: `Waiting for Horizon indexing (10s)...`, status: 'pending' });
+  await new Promise(r => setTimeout(r, 10000));
   
-  onStep({ label: `Submitting Soroban XDR to relayer...`, status: 'pending' });
+  onStep({ label: `Submitting payment proof to relayer...`, status: 'pending' });
   
-  // Official x402 v2 Proof Format: base64(JSON({ x402Version, accepted, proof }))
+  // Official x402 v2 Proof Format (Classic Hash)
   accepted.network = 'stellar:pubnet';
   const paymentPayload = {
     x402Version: 2,
     accepted: accepted,
-    proof: { transaction: txXdr }
+    proof: { transactionHash: txHash }
   };
   const signature = btoa(JSON.stringify(paymentPayload));
 

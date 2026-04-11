@@ -218,7 +218,7 @@ app.use((req, _res, next) => {
 
 // x402 Middleware Configuration
 const x402Routes = {};
-const USDC_ASSET = 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75';
+const USDC_ASSET = 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
 
 Object.values(AGENTS).forEach(agent => {
   if (agent.protocol === 'x402') {
@@ -255,11 +255,14 @@ const facilitatorClient = new HTTPFacilitatorClient({
   }
 });
 
-// 2. Official x402 Stack Initialization (Exact Scheme for Mainnet)
+// 2. Official x402 Stack Initialization (Classic Exact Scheme)
 const horizonUrl = 'https://horizon.stellar.org';
 const localFacilitator = new ExactStellarScheme({ horizonUrl });
 
+// IMPORTANT: Initialize with the facilitator in an array to avoid iterator errors
 const x402Server = new x402ResourceServer([facilitatorClient, localFacilitator]);
+
+// Register the scheme using the class instance
 x402Server.register('stellar:pubnet', localFacilitator);
 
 // 3. HTTP Server & Middleware Adapter
