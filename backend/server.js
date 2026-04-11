@@ -279,7 +279,10 @@ class DecentralizedLocalFacilitator {
 
   async getSupported() {
     return {
-      kinds: [{ x402Version: 1, scheme: 'exact', network: 'stellar:pubnet' }],
+      kinds: [
+        { x402Version: 1, scheme: 'exact', network: 'stellar:pubnet' },
+        { x402Version: 2, scheme: 'exact', network: 'stellar:pubnet' }
+      ],
       extensions: [],
       signers: {}
     };
