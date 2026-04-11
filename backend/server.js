@@ -258,9 +258,7 @@ x402Server.register(x402NetworkIdentifier, new ExactStellarScheme());
 // Rotaları (routes) burada HTTP sunucusuna bağlıyoruz
 const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
 
-// State tracking
-let isX402Initialized = false;
-let x402InitError = null;
+// State tracking (already declared at top)
 
 // 3. Official Express Middleware
 const x402Middleware = async (req, res, next) => {
