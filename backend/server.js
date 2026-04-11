@@ -257,18 +257,24 @@ Object.values(AGENTS).forEach(agent => {
 // 1. Core Resource Server
 const ResourceServer = new x402ResourceServer([facilitatorClient]);
 
-// Register Stellar scheme (Default is USDC-ready)
-ResourceServer.register(x402NetworkIdentifier, new ExactStellarScheme());
+// 1. Create the authenticated Resource Server instance
+// This is critical: without passing the facilitatorClient, the middleware 
+// cannot verify payments that require an API Key.
+const x402Server = new x402ResourceServer(x402Routes, {
+  facilitator: facilitatorClient,
+  scheme: new ExactStellarScheme()
+});
 
-// 2. HTTP Adapter
-const httpServer = new x402HTTPResourceServer(ResourceServer, x402Routes);
+// 2. HTTP Adapter for background initialization
+const httpServer = new x402HTTPResourceServer(x402Server);
 
 // State tracking for protocol initialization
 let isX402Initialized = false;
 let x402InitError = null;
 
 // 3. Official x402 Express Middleware
-const officialX402Middleware = paymentMiddlewareFromHTTPServer(httpServer);
+// We use the middleware from our authenticated server instance
+const officialX402Middleware = httpServer.middleware();
 
 const x402Middleware = async (req, res, next) => {
   // 1. Skip for non-agent invocation routes (Performance & safety)
