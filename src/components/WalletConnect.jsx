@@ -53,11 +53,11 @@ export default function WalletConnect({ onWalletConnected, address, balances, is
                <div style={{ display: 'flex', flexDirection: 'column' }}>
                  <span className="text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Asset Balance</span>
                  <span style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                   {balances.usdc.toFixed(2)} <span style={{ fontSize: '1rem', color: '#10b981' }}>USDC</span>
+                   {balances?.usdc?.toFixed(2) ?? '0.00'} <span style={{ fontSize: '1rem', color: '#10b981' }}>USDC</span>
                  </span>
                  <div className="flex items-center gap-2 mt-2" style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
                     <span>XLM (Network Fee):</span>
-                    <span style={{ color: '#f8fafc' }}>{balances.xlm.toFixed(4)}</span>
+                    <span style={{ color: '#f8fafc' }}>{balances?.xlm?.toFixed(4) ?? '0.0000'}</span>
                  </div>
                </div>
                <button className="btn" onClick={disconnect} style={{ padding: '0.4rem', border: 'none', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>

@@ -251,30 +251,6 @@ const x402Middleware = async (req, res, next) => {
   };
 
   try {
-    // If we're in simulator mode, try to fulfill the request without the facilitator
-    if (x402InitError && process.env.NODE_ENV !== 'production') {
-      console.log(`[Simulator Mode] Handling ${req.method} ${req.path}`);
-      
-      // Check if this is a protected route
-      const route = x402Routes[`${req.method} ${req.path}`];
-      if (route) {
-        const paymentSignature = req.header('PAYMENT-SIGNATURE');
-        if (!paymentSignature) {
-          // Simulate 402 Payment Required
-          return res.status(402).set({
-            'PAYMENT-REQUIRED': JSON.stringify(route)
-          }).json({
-            error: 'PAYMENT-REQUIRED',
-            message: 'Simulator Mode: Payment signature required (any string will work for dev)'
-          });
-        }
-        
-        // Simulate Verified
-        req.x402 = { payload: { status: 'verified', simulator: true } };
-        return next();
-      }
-    }
-
     const result = await httpServer.processHTTPRequest({ adapter });
 
     if (result.type === 'payment-error') {
@@ -309,12 +285,9 @@ async function initializeX402() {
     console.log('✅ x402 Protocol synchronized and ready.');
   } catch (err) {
     x402InitError = err.message;
-    isX402Initialized = true; // Mark as initialized anyway so middleware can run in simulator mode
-    console.error(`❌ x402 Facilitator unavailable. System running in SIMULATOR MODE: ${err.message}`);
-    // We don't retry indefinitely with a timeout if it's a 401/403 (invalid key)
-    if (!err.message.includes('401') && !err.message.includes('403')) {
-       setTimeout(initializeX402, 30000); 
-    }
+    isX402Initialized = false;
+    console.error(`❌ x402 Initialization failed (retrying in 10s): ${err.message}`);
+    setTimeout(initializeX402, 10000); 
   }
 }
 initializeX402();
@@ -522,10 +495,9 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     network: STELLAR_NETWORK,
     x402Initialized: isX402Initialized,
-    mode: x402InitError ? 'simulator' : 'production',
     error: x402InitError,
     timestamp: new Date().toISOString()
-  });
+});
 });
 
 // Start server

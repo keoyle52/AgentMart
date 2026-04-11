@@ -57,11 +57,14 @@ function App() {
         const url = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
         const res = await fetch(`${url}/api/health`);
         const data = await res.json();
-        setSystemState(data);
-        if (data.mode === 'simulator') {
-          addLog('Backend running in SIMULATOR MODE (Facilitator API Key error). Transactions will be simulated.', 'warning');
+        setSystemState({
+           ...data,
+           status: 'ok'
+        });
+        if (!data.x402Initialized) {
+          addLog('x402 Facilitator is syncing or unreachable. Some services may return 503.', 'warning');
         } else {
-          addLog('Backend connection established. x402 Facilitator ready.', 'success');
+          addLog('Full x402 Protocol connection established.', 'success');
         }
       } catch (err) {
         setSystemState({ status: 'error', mode: 'none', x402Initialized: false });
@@ -282,8 +285,8 @@ function App() {
                 { label: 'Stellar Network', value: 'Mainnet', color: '#f8fafc' },
                 { 
                    label: 'System Mode', 
-                   value: systemState.mode === 'simulator' ? 'Simulator' : (systemState.mode === 'production' ? 'Real-Verified' : 'Disconnected'), 
-                   color: systemState.mode === 'simulator' ? '#f59e0b' : (systemState.mode === 'production' ? '#10b981' : '#ef4444') 
+                   value: systemState.x402Initialized ? 'Real-Verified' : (systemState.status === 'error' ? 'Disconnected' : 'Syncing...'), 
+                   color: systemState.x402Initialized ? '#10b981' : (systemState.status === 'error' ? '#ef4444' : '#f59e0b') 
                 },
               ].map(({ label, value, color }) => (
                 <div key={label} className="flex justify-between items-center">
