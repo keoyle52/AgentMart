@@ -131,14 +131,16 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
     amount = (parseFloat(amount) / 10000000).toFixed(7).replace(/\.?0+$/, '');
   }
 
-  onStep({
-    label: `x402 Handshake: Payment of ${amount} USDC requested`,
-    status: 'warning'
-  });
+  // Extract price correctly (handles both string and AssetAmount object from v2 spec)
+  const priceValue = typeof accepted.price === 'object' 
+    ? (parseFloat(accepted.price.amount) / 10000000).toString() 
+    : accepted.price;
+
+  onStep({ label: `x402 Handshake: Payment of ${priceValue} USDC requested`, status: 'info' });
 
   // Step 2 — Pay on-chain
   onStep({ label: `Submitting payment to ${accepted.payTo.substring(0, 8)}...`, status: 'pending' });
-  const txHash = await payWithAutonomousKey(secretKey, accepted.payTo, amount);
+  const txHash = await payWithAutonomousKey(secretKey, accepted.payTo, priceValue);
   onStep({ label: `Payment submitted: ${txHash.substring(0, 12)}...`, status: 'info', data: { txHash } });
 
   // Step 3 — Submit official proof

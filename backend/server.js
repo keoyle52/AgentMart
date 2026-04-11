@@ -231,9 +231,12 @@ Object.values(AGENTS).forEach(agent => {
     x402Routes[`POST /api/agents/${agent.id}/invoke`] = {
       accepts: [{
         scheme: 'exact',
-        price: '0.001', 
-        asset: USDC_ASSET,
-        network: 'public', // Using 'public' identifier for the exact scheme
+        // Use an object to specify classic asset directly, avoiding Soroban defaults
+        price: {
+          amount: '10000', // 0.001 * 10^7 (Stellar precision)
+          asset: USDC_ASSET
+        },
+        network: 'public', 
         payTo: SETTLEMENT_ADDRESS,
       }],
       description: agent.description,
