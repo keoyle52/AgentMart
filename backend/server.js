@@ -251,9 +251,19 @@ const baseFacilitatorClient = new HTTPFacilitatorClient({
 });
 
 const facilitatorClient = {
-  getSupported: async () => [{ network: 'stellar:pubnet', scheme: 'exact' }],
-  verify: (req) => baseFacilitatorClient.verify(req),
-  settle: (req) => baseFacilitatorClient.settle(req)
+  getSupported: async () => {
+    return {
+      kinds: [{ network: 'stellar:pubnet', scheme: 'exact' }]
+    };
+  },
+  verify: async (req) => {
+    return await baseFacilitatorClient.verify(req);
+  },
+  settle: async (req) => {
+    if (baseFacilitatorClient.settle) {
+      return await baseFacilitatorClient.settle(req);
+    }
+  }
 };
 
 // 2. Official x402 Stack Initialization (Managed Relay)
