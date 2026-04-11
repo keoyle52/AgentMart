@@ -19,7 +19,7 @@ const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || 'GCJV64SQP24FBBYMUK
 const PORT = process.env.PORT || 3001;
 
 // Intelligent Facilitator URL selection
-const defaultFacilitatorUrl = 'https://channels.openzeppelin.com/x402';
+const defaultFacilitatorUrl = 'https://channels.openzeppelin.com';
 
 const X402_FACILITATOR_URL = (process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl).trim().replace(/\/$/, '');
 const X402_FACILITATOR_API_KEY = (process.env.X402_FACILITATOR_API_KEY || '14a2ed56-9301-4d9c-ade2-addf932868d3').trim();
@@ -242,7 +242,6 @@ Object.values(AGENTS).forEach(agent => {
 const facilitatorClient = new HTTPFacilitatorClient({
   url: X402_FACILITATOR_URL,
   createAuthHeaders: async () => ({
-    'Authorization': `Bearer ${X402_FACILITATOR_API_KEY}`,
     'X-API-Key': X402_FACILITATOR_API_KEY
   })
 });
@@ -266,6 +265,7 @@ httpServer.initialize()
     x402InitError = err.message;
     console.error('❌ x402 Auth Failed. Lütfen OpenZeppelin Panelinden PUBLIC (Mainnet) uyumlu yeni bir API Key alıp almadığınızı kontrol edin.');
     console.error(`   Error Detail: ${err.message}`);
+    console.error(`   Stack Trace: ${err.stack}`);
   });
 
 const x402Middleware = async (req, res, next) => {
