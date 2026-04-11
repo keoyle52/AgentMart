@@ -224,14 +224,16 @@ app.use((req, _res, next) => {
 
 // x402 Middleware Configuration
 const x402Routes = {};
+const USDC_ASSET = 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
+
 Object.values(AGENTS).forEach(agent => {
   if (agent.protocol === 'x402') {
     x402Routes[`POST /api/agents/${agent.id}/invoke`] = {
       accepts: [{
         scheme: 'exact',
         price: '0.001', 
-        asset: 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
-        network: x402NetworkIdentifier,
+        asset: USDC_ASSET,
+        network: 'public', // Using 'public' identifier for the exact scheme
         payTo: SETTLEMENT_ADDRESS,
       }],
       description: agent.description,
@@ -267,7 +269,7 @@ const x402Server = new x402ResourceServer([facilitatorClient]);
 
 // CRITICAL: Point the scheme to the correct Horizon server for verification
 const horizonUrl = STELLAR_NETWORK === 'PUBLIC' ? 'https://horizon.stellar.org' : 'https://horizon-testnet.stellar.org';
-x402Server.register(x402NetworkIdentifier, new ExactStellarScheme({ horizonUrl }));
+x402Server.register(activeNetworkId, new ExactStellarScheme({ horizonUrl }));
 
 // Rotaları (routes) burada HTTP sunucusuna bağlıyoruz
 const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
