@@ -148,7 +148,7 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   const paymentPayload = {
     x402Version: 2,
     accepted: accepted,
-    proof: { transaction: txHash }
+    proof: { transactionHash: txHash }
   };
   const signature = btoa(JSON.stringify(paymentPayload));
 
