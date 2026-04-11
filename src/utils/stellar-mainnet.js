@@ -99,7 +99,7 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
-      'PAYMENT-SIGNATURE': txHash // Official header to pass the proof
+      'X-PAYMENT': txHash // Official header to pass the proof
     },
     body: JSON.stringify({ agentId, txHash }), // Passing txHash in body too for convenience
   });
