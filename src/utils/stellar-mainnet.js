@@ -84,8 +84,22 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   const paymentRequiredRaw = initialRes.headers.get('PAYMENT-REQUIRED');
   if (!paymentRequiredRaw) throw new Error('Missing PAYMENT-REQUIRED header in 402 response');
   
-  const paymentConfig = JSON.parse(paymentRequiredRaw);
-  const paymentDetails = paymentConfig.accepts[0]; // Official spec usually allows multiple, we take first
+  let paymentConfig;
+  try {
+    // Try parsing as raw JSON first
+    paymentConfig = JSON.parse(paymentRequiredRaw);
+  } catch (err) {
+    // If it fails, it's likely Base64 encoded (new official spec behavior)
+    try {
+      const decoded = atob(paymentRequiredRaw);
+      paymentConfig = JSON.parse(decoded);
+    } catch (decodeErr) {
+      console.error('Handshake Parse Error:', paymentRequiredRaw);
+      throw new Error('Transaction failed: Invalid PAYMENT-REQUIRED header format');
+    }
+  }
+
+  const paymentDetails = paymentConfig.accepts[0]; 
 
   onStep({
     label: `x402 Handshake: Payment of ${paymentDetails.price} requested`,
