@@ -111,7 +111,7 @@ export default function AgentDashboard({ logs }) {
           x402 PROTOCOL FLOW
         </p>
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap', fontSize: '0.72rem', color: '#94a3b8' }}>
-          {['Invoke Agent', '← 402 Payment Required', '→ Pay XLM On-chain', '→ Submit Proof', '← Service Delivered'].map((step, i) => (
+          {['Invoke Agent', '← 402 Payment Required', '→ Pay USDC On-chain', '→ Submit Proof', '← Service Delivered'].map((step, i) => (
             <React.Fragment key={i}>
               <span style={{ padding: '0.15rem 0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>{step}</span>
               {i < 4 && <span style={{ color: '#334155' }}>▶</span>}

@@ -14,18 +14,35 @@ if (!global.fetch) {
 }
 
 const app = express();
-const STELLAR_NETWORK = process.env.STELLAR_NETWORK || 'PUBLIC';
+const STELLAR_NETWORK = process.env.STELLAR_NETWORK || 'PUBLIC'; // PUBLIC or TESTNET
 const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || 'GCJV64SQP24FBBYMUK5UUK76STPG45XGLVILU3TYNYASDAFFUSET3YY7';
 const PORT = process.env.PORT || 3001;
 
+// Intelligent Facilitator URL selection
+const defaultFacilitatorUrl = STELLAR_NETWORK === 'PUBLIC' 
+  ? 'https://channels.openzeppelin.com/x402'
+  : 'https://channels.openzeppelin.com/testnet/x402';
+
+const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl;
+const X402_FACILITATOR_API_KEY = process.env.X402_FACILITATOR_API_KEY;
+
+console.log(`[Config] Network: ${STELLAR_NETWORK}`);
+console.log(`[Config] Facilitator: ${X402_FACILITATOR_URL}`);
+console.log(`[Config] API Key: ${X402_FACILITATOR_API_KEY ? X402_FACILITATOR_API_KEY.substring(0, 8) + '...' : 'MISSING'}`);
+
 // Official x402 Protocol Stack Configuration
 const facilitatorClient = new HTTPFacilitatorClient({
-  url: process.env.X402_FACILITATOR_URL || 'https://channels.openzeppelin.com/x402',
-  createAuthHeaders: async () => ({
-    headers: {
-      Authorization: `Bearer ${process.env.X402_FACILITATOR_API_KEY}`,
-    },
-  }),
+  url: X402_FACILITATOR_URL,
+  createAuthHeaders: async () => {
+    if (!process.env.X402_FACILITATOR_API_KEY) {
+      throw new Error('401 Unauthorized: X402_FACILITATOR_API_KEY is missing in environment variables.');
+    }
+    return {
+      headers: {
+        Authorization: `Bearer ${process.env.X402_FACILITATOR_API_KEY}`,
+      },
+    };
+  },
 });
 
 const x402NetworkIdentifier = STELLAR_NETWORK === 'PUBLIC' ? 'stellar:pubnet' : 'stellar:testnet';
@@ -286,7 +303,13 @@ async function initializeX402() {
   } catch (err) {
     x402InitError = err.message;
     isX402Initialized = false;
-    console.error(`❌ x402 Initialization failed (retrying in 10s): ${err.message}`);
+    
+    if (err.message.includes('401')) {
+      console.error(`❌ x402 Auth Failed (401): The API Key is unauthorized for ${X402_FACILITATOR_URL}. Please ensure you generated the key for the correct network.`);
+    } else {
+      console.error(`❌ x402 Initialization failed (retrying in 10s): ${err.message}`);
+    }
+    
     setTimeout(initializeX402, 10000); 
   }
 }
