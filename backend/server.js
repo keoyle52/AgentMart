@@ -4,8 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { Horizon, Networks } from '@stellar/stellar-sdk';
 import 'dotenv/config';
 
-// Official x402 Protocol Stack
-// import { paymentMiddleware } from '@x402/express'; 
 
 
 const app = express();

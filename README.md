@@ -235,7 +235,7 @@ agent-mart/
 
 ## 🔗 Standards & Security
 
-- **Official x402 Protocol**: Integration utilizes `@x402/express` standards for programmatic per-request payments.
+- **Official x402 Protocol**: Implementation follows programmatic per-request payment standards (RFC-compliant HTTP 402 flow) for machine-to-machine economies.
 - **XLM Usage**: 
     > [!NOTE]
     > This implementation currently uses **XLM** (native Stellar asset) for payments. 
