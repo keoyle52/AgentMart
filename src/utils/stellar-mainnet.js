@@ -138,8 +138,8 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   onStep({ label: `Payment submitted: ${txHash.substring(0, 12)}...`, status: 'info', data: { txHash } });
 
   // Step 3 — Submit official proof
-  onStep({ label: `Waiting for facilitator to index (3s)...`, status: 'pending' });
-  await new Promise(r => setTimeout(r, 3000));
+  onStep({ label: `Waiting for facilitator to index (8s)...`, status: 'pending' });
+  await new Promise(r => setTimeout(r, 8000));
   
   onStep({ label: `Verifying payment proof...`, status: 'pending' });
   
@@ -147,7 +147,7 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   const paymentPayload = {
     x402Version: 2,
     accepted: accepted,
-    proof: { transaction: txHash }
+    proof: { transactionHash: txHash }
   };
   const signature = btoa(JSON.stringify(paymentPayload));
 
