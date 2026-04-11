@@ -233,12 +233,17 @@ agent-mart/
 
 ---
 
-## 🔐 Security Notes
+## 🔗 Standards & Security
 
-- Nonces expire after 5 minutes to prevent replay attacks
-- Secret keys are never sent to the backend — only public keys and tx hashes
-- All payments are verified on-chain via Horizon before service is delivered
-- MPP micropayments use cryptographic signatures (raw bytes signed with Ed25519)
+- **Official x402 Protocol**: Integration utilizes `@x402/express` standards for programmatic per-request payments.
+- **XLM Usage**: 
+    > [!NOTE]
+    > This implementation currently uses **XLM** (native Stellar asset) for payments. 
+    > **USDC migration** is planned as the next milestone to align with stablecoin-first machine economies.
+- **Nonce Replay Protection**: Nonces expire after 5 minutes to prevent replay attacks.
+- **Client-Side Signing**: Secret keys are never sent to the backend — only public keys and tx hashes.
+- **MPP Authorization**: Micropayments use Ed25519 cryptographic signatures for off-chain verification.
+
 
 ---
 

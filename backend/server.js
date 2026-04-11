@@ -4,6 +4,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { Horizon, Networks } from '@stellar/stellar-sdk';
 import 'dotenv/config';
 
+// Official x402 Protocol Stack
+// import { paymentMiddleware } from '@x402/express'; 
+
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -29,16 +33,34 @@ const AGENTS = {
     description: 'Extracts structured data from any public URL.',
     priceXLM: '0.001',
     protocol: 'x402',
-    invoke: async () => ({
-      status: 'success',
-      result: {
-        title: 'Stellar Development Foundation',
-        url: 'https://stellar.org',
-        summary: 'The Stellar Development Foundation supports the growth and development of the open-source Stellar network.',
-        wordCount: 2847,
-        extractedAt: new Date().toISOString(),
-      },
-    }),
+    invoke: async (input) => {
+      const targetUrl = input?.url || 'https://stellar.org';
+      try {
+        const response = await fetch(targetUrl, { headers: { 'User-Agent': 'AgentMart-Scraper/1.0' } });
+        const html = await response.text();
+        const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+        const title = titleMatch ? titleMatch[1] : 'Unknown Title';
+        const cleanText = html.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+        const words = cleanText.split(/\s+/).length;
+        
+        return {
+          status: 'success',
+          result: {
+            title,
+            url: targetUrl,
+            summary: `Successfully extracted and analyzed ${words} words from ${new URL(targetUrl).hostname}. Content appears to be focused on ${title.substring(0, 50)}...`,
+            wordCount: words,
+            extractedAt: new Date().toISOString(),
+          },
+        };
+      } catch (err) {
+        return {
+          status: 'error',
+          error: `Failed to scrape ${targetUrl}: ${err.message}`,
+          result: { title: 'Extraction Failed', url: targetUrl, wordCount: 0, extractedAt: new Date().toISOString() }
+        };
+      }
+    },
   },
   'price-oracle': {
     id: 'price-oracle',
@@ -297,7 +319,7 @@ app.post('/api/x402/verify', async (req, res) => {
     // ✅ Payment verified — consume nonce and return service result
     pendingNonces.delete(nonce);
 
-    const serviceResult = await agent.invoke();
+    const serviceResult = await agent.invoke(req.body);
 
     console.log(`✅ x402 verified: agent=${agentId}, tx=${txHash}, amount=${paymentOp.amount} XLM`);
 
@@ -391,7 +413,7 @@ app.post('/api/mpp/invoke', async (req, res) => {
   session.micropayments.push(payment);
   session.spentXLM += cost;
 
-  const serviceResult = await agent.invoke();
+  const serviceResult = await agent.invoke(req.body);
 
   console.log(`⚡ MPP micropayment: session=${sessionId}, seq=${payment.sequence}, cost=${cost} XLM`);
 
