@@ -118,115 +118,57 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
     throw new Error(body.error || `Unexpected status ${initialRes.status}`);
   }
 
-  // Official header is 'PAYMENT-REQUIRED'
+  // Official header is 'PAYMENT-REQUIRED' (v2 uses Base64 JSON)
   const paymentRequiredRaw = initialRes.headers.get('PAYMENT-REQUIRED');
-  if (!paymentRequiredRaw) throw new Error('Missing PAYMENT-REQUIRED header in 402 response');
+  if (!paymentRequiredRaw) throw new Error('Missing PAYMENT-REQUIRED header');
   
-  let paymentConfig;
-  try {
-    // Try parsing as raw JSON first
-    paymentConfig = JSON.parse(paymentRequiredRaw);
-  } catch (err) {
-    // If it fails, it's likely Base64 encoded (new official spec behavior)
-    try {
-      const decoded = atob(paymentRequiredRaw);
-      paymentConfig = JSON.parse(decoded);
-    } catch (decodeErr) {
-      console.error('Handshake Parse Error:', paymentRequiredRaw);
-      throw new Error('Transaction failed: Invalid PAYMENT-REQUIRED header format');
-    }
-  }
-
-  const paymentDetails = paymentConfig.accepts[0]; 
-  let amount = paymentDetails.amount || paymentDetails.price;
+  const paymentConfig = JSON.parse(atob(paymentRequiredRaw));
+  const accepted = paymentConfig.accepts[0]; 
+  let amount = accepted.amount;
   
-  // Official x402 Stellar headers use stroops (10^-7 units)
-  // We must convert them back to decimal units for the Stellar SDK
+  // Official x402 units are in 10^-7 (stroops). Convert for Stellar SDK.
   if (amount && !amount.toString().includes('.')) {
-    const rawAmount = parseFloat(amount) / 10000000;
-    amount = rawAmount.toFixed(7).replace(/\.?0+$/, ''); // Format as 0.005 etc.
+    amount = (parseFloat(amount) / 10000000).toFixed(7).replace(/\.?0+$/, '');
   }
-
 
   onStep({
     label: `x402 Handshake: Payment of ${amount} USDC requested`,
-    status: 'warning',
-    data: { destination: paymentDetails.payTo },
+    status: 'warning'
   });
 
-  // Step 2 — Pay on-chain (Autonomous mode)
-  onStep({ label: `Signing & submitting payment to ${paymentDetails.payTo.substring(0, 8)}...`, status: 'pending' });
-  const txHash = await payWithAutonomousKey(secretKey, paymentDetails.payTo, amount);
+  // Step 2 — Pay on-chain
+  onStep({ label: `Submitting payment to ${accepted.payTo.substring(0, 8)}...`, status: 'pending' });
+  const txHash = await payWithAutonomousKey(secretKey, accepted.payTo, amount);
   onStep({ label: `Payment submitted: ${txHash.substring(0, 12)}...`, status: 'info', data: { txHash } });
 
-  // Step 3 — Wait for propagation and submit proof
-  // Using a universal multi-format retry strategy to handle spec variations and indexing lag.
-  const maxRetries = 5;
-  let finalRes;
-  let finalData;
+  // Step 3 — Submit official proof
+  onStep({ label: `Verifying payment proof...`, status: 'pending' });
+  
+  // Official x402 v2 Proof Format: base64(JSON({ x402Version, accepted, proof }))
+  const paymentPayload = {
+    x402Version: 2,
+    accepted: accepted,
+    proof: { transaction: txHash }
+  };
+  const signature = btoa(JSON.stringify(paymentPayload));
 
-  for (let i = 0; i < maxRetries; i++) {
-    onStep({ 
-      label: `Verifying proof (Attempt ${i + 1}/${maxRetries})...`, 
-      status: 'pending' 
-    });
-    
-    // Attempt different "Full Proof" structures that include maximum context for the facilitator
-    const baseContext = {
-      transaction: txHash,
-      asset: 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
-      payTo: paymentDetails.payTo,
-      amount: amount
-    };
+  const finalRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'PAYMENT-SIGNATURE': signature
+    },
+    body: JSON.stringify({ agentId }),
+  });
 
-    let proof;
-    if (i === 0) {
-      // 1. Full Context (stellar:pubnet) - Most likely success
-      proof = btoa(JSON.stringify({ ...baseContext, network: 'stellar:pubnet' }));
-    } else if (i === 1) {
-      // 2. Full Context (stellar:mainnet) - Alternate identifier
-      proof = btoa(JSON.stringify({ ...baseContext, network: 'stellar:mainnet' }));
-    } else if (i === 2) {
-      // 3. Simple Enriched Base64
-      proof = btoa(JSON.stringify({ transaction: txHash, network: 'stellar:pubnet' }));
-    } else if (i === 3) {
-      // 4. Raw JSON (Non-encoded)
-      proof = JSON.stringify({ ...baseContext, network: 'stellar:pubnet' });
-    } else {
-      // 5. Raw hash fallback
-      proof = txHash;
-    }
-
-    try {
-      finalRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'PAYMENT-SIGNATURE': proof
-        },
-        body: JSON.stringify({ agentId, txHash }),
-      });
-
-      finalData = await finalRes.json().catch(() => ({}));
-      if (finalRes.ok) break;
-    } catch (err) {
-      console.warn('Verification attempt network error:', err);
-    }
-    
-    if (i < maxRetries - 1) {
-      const nextWait = 5000 + (i * 1000); // 5s, 6s, 7s... total ~30s window
-      onStep({ label: `Format Mode ${i+1} failed. Next retry in ${nextWait/1000}s...`, status: 'warning' });
-      await new Promise((r) => setTimeout(r, nextWait));
-    }
-  }
-
+  const finalData = await finalRes.json().catch(() => ({}));
   if (!finalRes.ok) {
-    throw new Error(finalData.error || 'Official verification failed after multiple attempts');
+    throw new Error(finalData.error || 'Payment verification failed');
   }
 
   // Step 4 — Service delivered
   onStep({
-    label: `Service delivered by ${finalData.agentName}`,
+    label: `Service delivered by agent`,
     status: 'success',
     data: {
       txHash,

@@ -104,7 +104,7 @@ const AGENTS = {
     id: 'price-oracle',
     name: 'Price Oracle Agent',
     description: 'Delivers real-time asset prices from aggregated sources.',
-    priceUSDC: '0.0001000',
+    priceUSDC: '0.0010000',
     protocol: 'x402',
     invoke: async () => {
       try {
@@ -146,7 +146,7 @@ const AGENTS = {
     id: 'security-auditor',
     name: 'Security Auditor Agent',
     description: 'Scans Soroban smart contracts for vulnerabilities.',
-    priceUSDC: '0.0100000',
+    priceUSDC: '0.0010000',
     protocol: 'x402',
     invoke: async () => ({
       status: 'success',
@@ -254,60 +254,50 @@ Object.values(AGENTS).forEach(agent => {
   }
 });
 
-// 1. Core Resource Server instance with authentication
-const x402Server = new x402ResourceServer(x402Routes, {
-  facilitator: facilitatorClient
+// 1. Authenticated Facilitator Client
+// Standard x402 v2 expects individual headers for each operation type
+const facilitatorClient = new HTTPFacilitatorClient({
+  url: X402_FACILITATOR_URL,
+  createAuthHeaders: async () => {
+    const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
+    if (!apiKey) throw new Error('X402_FACILITATOR_API_KEY is missing.');
+    const headers = { 'X-API-Key': apiKey };
+    return {
+      supported: headers,
+      verify: headers,
+      settle: headers
+    };
+  }
 });
 
-// 2. Register Stellar scheme
+// 2. Official x402 Stack Initialization (Official mapping)
+const x402Server = new x402ResourceServer([facilitatorClient]);
 x402Server.register(x402NetworkIdentifier, new ExactStellarScheme());
 
-// 3. HTTP Resource Server with explicit middleware support
-const httpServer = new x402HTTPResourceServer(x402Server);
+// Rotaları (routes) burada HTTP sunucusuna bağlıyoruz
+const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
 
-// State tracking for protocol initialization
+// State tracking
 let isX402Initialized = false;
 let x402InitError = null;
 
-// 4. Official x402 Express Middleware (Using the correct factory for instances)
-const officialX402Middleware = (req, res, next) => httpServer.handleHTTPRequest(req, res, next);
-
+// 3. Official Express Middleware
 const x402Middleware = async (req, res, next) => {
-  // 1. Skip for non-agent invocation routes (Performance & safety)
-  if (!req.path.startsWith('/api/agents/')) {
-    return next();
-  }
+  if (!req.path.startsWith('/api/agents/')) return next();
 
-  // 2. Friendly warming up status
   if (!isX402Initialized) {
     return res.status(503).json({ 
-      error: 'x402 protocol is warming up', 
-      message: 'Synchronizing with Stellar network... Please try again in 5-10 seconds.' 
+      error: 'x402 protocol warming up', 
+      message: 'Synchronizing with Stellar network...' 
     });
   }
 
-  // 3. Diagnostic Logging: Intercept responses to see facilitator errors
-  const originalSend = res.send;
-  res.send = function (body) {
-    if (res.statusCode >= 400 && req.headers['payment-signature']) {
-      console.warn(`[x402 Debug] Verification failed: status=${res.statusCode}, path=${req.path}`);
-      console.warn(`[x402 Debug] Payload: ${body}`);
-      try {
-        const routeKey = `POST ${req.path}`;
-        console.warn(`[x402 Debug] Configured Route: ${JSON.stringify(x402Routes[routeKey])}`);
-      } catch (e) {}
-    }
-    return originalSend.apply(res, arguments);
-  };
-
-  // 4. Hand off to the official @x402/express middleware
-  return officialX402Middleware(req, res, next);
+  return httpServer.handleHTTPRequest(req, res, next);
 };
 
-// Apply x402 protection
 app.use(x402Middleware);
 
-// 4. Background Initialization (Failsafe)
+// 4. Background Initialization (Official .initialize() call)
 async function initializeX402() {
   console.log('🔄 Initializing x402 protocol in background...');
   try {
@@ -318,18 +308,11 @@ async function initializeX402() {
   } catch (err) {
     x402InitError = err.message;
     isX402Initialized = false;
-    
-    if (err.message.includes('401')) {
-      const apiKeyPrefix = (process.env.X402_FACILITATOR_API_KEY || '').substring(0, 8);
-      console.error(`❌ x402 Auth Failed (401): The key "${apiKeyPrefix}..." is unauthorized for ${X402_FACILITATOR_URL}.`);
-      console.error('👉 Please verify you have copied the full key and are using the correct network (Mainnet vs Testnet).');
-    } else {
-      console.error(`❌ x402 Initialization failed (retrying in 10s): ${err.message}`);
-    }
-    
-    setTimeout(initializeX402, 10000); 
+    console.error(`❌ x402 Initialization failed: ${err.message}`);
+    setTimeout(initializeX402, 10000);
   }
 }
+
 initializeX402();
 
 // Refactored Agent Invocation Gate (No longer needs manual verification logic)

@@ -21,7 +21,7 @@ const AGENTS = [
     icon: Database,
     iconColor: '#34d399',
     desc: 'Aggregated real-time asset prices from multiple CEX sources.',
-    priceUSDC: '0.0001',
+    priceUSDC: '0.001',
     protocol: 'x402',
     category: 'Finance',
   },
