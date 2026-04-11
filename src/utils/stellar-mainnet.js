@@ -128,9 +128,7 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   }
 
   // Extract price correctly (handles both string and AssetAmount object from v2 spec)
-  const priceValue = typeof accepted.price === 'object' 
-    ? (parseFloat(accepted.price.amount) / 10000000).toString() 
-    : accepted.price;
+  const priceValue = amount || (typeof accepted.price === 'object' ? (parseFloat(accepted.price.amount) / 10000000).toString() : accepted.price);
 
   onStep({ label: `x402 Handshake: Payment of ${priceValue} USDC requested`, status: 'info' });
 
