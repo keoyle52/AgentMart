@@ -193,7 +193,7 @@ export async function openMPPSession(agentId, publicKey, maxBudgetUSDC, onStep) 
   const res = await fetch(`${BACKEND_URL}/api/mpp/open`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agentId, senderPublicKey: publicKey, maxBudgetXLM: maxBudgetUSDC }),
+    body: JSON.stringify({ agentId, senderPublicKey: publicKey, maxBudgetUSDC: maxBudgetUSDC }),
   });
 
   const data = await res.json();

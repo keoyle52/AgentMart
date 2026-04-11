@@ -98,6 +98,7 @@ Open Channel (on-chain, once)
 **Backend**
 - Node.js + Express
 - Stellar Horizon API (mainnet)
+- Soroban Smart Contracts (Rust)
 - UUID for nonce management
 - dotenv for configuration
 
@@ -245,6 +246,9 @@ agent-mart/
 - **Nonce Replay Protection**: Nonces expire after 5 minutes to prevent replay attacks.
 - **Client-Side Signing**: Secret keys are never sent to the backend — only public keys and tx hashes.
 - **MPP Authorization**: Micropayments use Ed25519 cryptographic signatures for off-chain verification.
+- **Soroban Integration**: 
+    > [!IMPORTANT]
+    > **Phase 2 Roadmap**: While the current MVP uses Horizon Local Verification for high-frequency P2P efficiency, the fully audited Soroban MPP contract is integrated in the codebase for complete decentralized settlement.
 
 
 ---

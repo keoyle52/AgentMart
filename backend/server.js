@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Horizon, Networks } from '@stellar/stellar-sdk';
 import 'dotenv/config';
 import fetch from 'node-fetch';
-import { x402ResourceServer, x402HTTPResourceServer } from '@x402/core/server';
+import { HTTPFacilitatorClient, x402ResourceServer, x402HTTPResourceServer } from '@x402/core/server';
 import { paymentMiddlewareFromHTTPServer } from '@x402/express';
 import { ExactStellarScheme } from '@x402/stellar/exact/server';
 
@@ -18,7 +18,15 @@ const STELLAR_NETWORK = 'PUBLIC'; // Forced to Mainnet
 const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || 'GCJV64SQP24FBBYMUK5UUK76STPG45XGLVILU3TYNYASDAFFUSET3YY7';
 const PORT = process.env.PORT || 3001;
 
+// Intelligent Facilitator URL selection
+const defaultFacilitatorUrl = 'https://channels.openzeppelin.com/x402';
+
+const X402_FACILITATOR_URL = (process.env.X402_FACILITATOR_URL || defaultFacilitatorUrl).replace(/\/$/, '');
+const X402_FACILITATOR_API_KEY = (process.env.X402_FACILITATOR_API_KEY || '').trim();
+
 console.log(`[Config] Network: ${STELLAR_NETWORK}`);
+console.log(`[Config] Facilitator: ${X402_FACILITATOR_URL}`);
+console.log(`[Config] API Key: ${X402_FACILITATOR_API_KEY ? X402_FACILITATOR_API_KEY.substring(0, 8) + '...' : 'MISSING'}`);
 
 // --- x402 Protocol State ---
 let isX402Initialized = false;
@@ -230,14 +238,37 @@ Object.values(AGENTS).forEach(agent => {
   }
 });
 
-// 1. Official x402 Stack Initialization (Local Horizon Verification)
+// 1. Authenticated Facilitator Client
+// Standard x402 v2 expects individual headers for each operation type
+// Standard x402 v2 resilient auth headers
+const facilitatorClient = new HTTPFacilitatorClient({
+  url: X402_FACILITATOR_URL,
+  createAuthHeaders: async () => {
+    const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
+    if (!apiKey) throw new Error('X402_FACILITATOR_API_KEY is missing.');
+    
+    // Providing both formats to ensure compatibility with different facilitator implementations
+    const authHeaders = { 
+      'Authorization': `Bearer ${apiKey}`,
+      'X-API-Key': apiKey 
+    };
+    
+    return {
+      supported: authHeaders,
+      verify: authHeaders,
+      settle: authHeaders
+    };
+  }
+});
+
+// 2. Official x402 Stack Initialization (Managed Relay)
 const horizonUrl = 'https://horizon.stellar.org';
 const localFacilitator = new ExactStellarScheme({ horizonUrl });
 
-const x402Server = new x402ResourceServer([localFacilitator]);
+const x402Server = new x402ResourceServer([facilitatorClient, localFacilitator]);
 x402Server.register(activeNetworkId, localFacilitator);
 
-// 2. Official Express Middleware Adapter
+// 3. Official Express Middleware Adapter
 const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);
 const officialHandler = paymentMiddlewareFromHTTPServer(httpServer, null, null, false);
 
