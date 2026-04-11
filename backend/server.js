@@ -216,11 +216,11 @@ Object.values(AGENTS).forEach(agent => {
 
 const x402Middleware = paymentMiddlewareFromConfig(
   x402Routes,
-  [facilitatorClient], // Pass as array
+  [facilitatorClient],
   [{ network: x402NetworkIdentifier, server: new ExactStellarScheme() }],
-  {}, // paywallConfig (Empty)
-  null, // paywall (None)
-  false // syncFacilitatorOnStart = false (Prevent startup crash if facilitator is offline)
+  {}, 
+  null, 
+  true // Re-enabled syncFacilitatorOnStart for proper initialization
 );
 
 // Apply x402 protection
