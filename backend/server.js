@@ -218,6 +218,17 @@ const AGENTS = {
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint (STAY ABOVE MIDDLEWARE to avoid crashes during warming up)
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    network: STELLAR_NETWORK,
+    x402Initialized: isX402Initialized,
+    error: x402InitError,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Request logger
 app.use((req, _res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
@@ -248,14 +259,16 @@ const ResourceServer = new x402ResourceServer([facilitatorClient]);
 ResourceServer.register(x402NetworkIdentifier, new ExactStellarScheme());
 
 // 2. HTTP Adapter
-const httpServer = new x402HTTPResourceServer(ResourceServer, x402Routes);
-
-// 3. Manual Resilient Middleware (Prevents 500 crashes during warming up)
-let isX402Initialized = false;
-let x402InitError = null;
+const httpServer = new x402HTTPResourceServer(ResourceServer, x402Routes);// 3. Official x402 Express Middleware
+const officialX402Middleware = paymentMiddlewareFromHTTPServer(httpServer);
 
 const x402Middleware = async (req, res, next) => {
-  // If protocol isn't ready yet, return a friendly warming up status instead of crashing
+  // 1. Skip for non-agent invocation routes (Performance & safety)
+  if (!req.path.startsWith('/api/agents/')) {
+    return next();
+  }
+
+  // 2. Friendly warming up status
   if (!isX402Initialized) {
     return res.status(503).json({ 
       error: 'x402 protocol is warming up', 
@@ -263,41 +276,12 @@ const x402Middleware = async (req, res, next) => {
     });
   }
 
-  // Create standard-compliant adapter for @x402/core
-  const adapter = {
-    getHeaders: () => req.headers,
-    getHeader: (name) => req.header(name),
-    getAcceptHeader: () => req.header('accept') || '',
-    getUserAgent: () => req.header('user-agent') || '',
-    getMethod: () => req.method,
-    getPath: () => req.path,
-    getUrl: () => req.originalUrl || req.url,
-  };
-
-  try {
-    const result = await httpServer.processHTTPRequest({ adapter });
-
-    if (result.type === 'payment-error') {
-      const { status, headers, body } = result.response;
-      return res.status(status).set(headers).send(body);
-    }
-
-    if (result.type === 'payment-verified') {
-      // Add payment info to request for the next handler
-      req.x402 = {
-        payload: result.paymentPayload,
-        requirements: result.paymentRequirements
-      };
-      return next();
-    }
-
-    // No payment required for this route
-    next();
-  } catch (err) {
-    console.error('x402 Middleware Error:', err);
-    res.status(500).json({ error: 'Internal x402 error: ' + err.message });
-  }
+  // 3. Hand off to the official @x402/express middleware
+  return officialX402Middleware(req, res, next);
 };
+
+// Apply x402 protection
+app.use(x402Middleware);
 
 // 4. Background Initialization (Failsafe)
 async function initializeX402() {
@@ -312,6 +296,7 @@ async function initializeX402() {
     isX402Initialized = false;
     
     if (err.message.includes('401')) {
+      const apiKeyPrefix = (process.env.X402_FACILITATOR_API_KEY || '').substring(0, 8);
       console.error(`❌ x402 Auth Failed (401): The key "${apiKeyPrefix}..." is unauthorized for ${X402_FACILITATOR_URL}.`);
       console.error('👉 Please verify you have copied the full key and are using the correct network (Mainnet vs Testnet).');
     } else {
@@ -322,9 +307,6 @@ async function initializeX402() {
   }
 }
 initializeX402();
-
-// Apply x402 protection
-app.use(x402Middleware);
 
 // Refactored Agent Invocation Gate (No longer needs manual verification logic)
 app.post('/api/agents/:agentId/invoke', async (req, res) => {
@@ -520,16 +502,7 @@ app.get('/api/mpp/session/:sessionId', (req, res) => {
   res.json(session);
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    network: STELLAR_NETWORK,
-    x402Initialized: isX402Initialized,
-    error: x402InitError,
-    timestamp: new Date().toISOString()
-});
-});
+// Health check endpoint removed from here
 
 // Start server
 app.listen(PORT, () => {
