@@ -243,14 +243,10 @@ const facilitatorClient = new HTTPFacilitatorClient({
   url: X402_FACILITATOR_URL,
   createAuthHeaders: async () => {
     const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
-    const authHeaders = { 
+    return { 
       'Authorization': `Bearer ${apiKey}`,
-      'X-API-Key': apiKey 
-    };
-    return {
-      supported: authHeaders,
-      verify: authHeaders,
-      settle: authHeaders
+      'X-API-Key': apiKey,
+      'Content-Type': 'application/json'
     };
   }
 });
@@ -291,11 +287,11 @@ const x402Middleware = async (req, res, next) => {
       try {
         const signature = req.headers['payment-signature'];
         const decoded = JSON.parse(Buffer.from(signature, 'base64').toString());
-        console.warn(`[x402 Trace] Failure on path: ${req.path}`);
-        console.warn(`[x402 Trace] Payload Signature:`, JSON.stringify(decoded, null, 2));
-        console.warn(`[x402 Trace] Rejection Body:`, body);
+        console.error(`[x402 Trace] Verification FAILED (Status: ${res.statusCode}) on path: ${req.path}`);
+        console.error(`[x402 Trace] Decoded Proof:`, JSON.stringify(decoded, null, 2));
+        console.error(`[x402 Trace] Relayer Rejection:`, typeof body === 'string' ? body : JSON.stringify(body));
       } catch (e) {
-        console.warn(`[x402 Trace] Failed to decode signature: ${e.message}`);
+        console.error(`[x402 Trace] Failed to decode signature or body: ${e.message}`);
       }
     }
     return originalSend.apply(res, arguments);
