@@ -100,16 +100,17 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   }
 
   const paymentDetails = paymentConfig.accepts[0]; 
+  const amount = paymentDetails.amount || paymentDetails.price;
 
   onStep({
-    label: `x402 Handshake: Payment of ${paymentDetails.price} requested`,
+    label: `x402 Handshake: Payment of ${amount} USDC requested`,
     status: 'warning',
     data: { destination: paymentDetails.payTo },
   });
 
   // Step 2 — Pay on-chain (Autonomous mode)
   onStep({ label: `Signing & submitting payment to ${paymentDetails.payTo.substring(0, 8)}...`, status: 'pending' });
-  const txHash = await payWithAutonomousKey(secretKey, paymentDetails.payTo, paymentDetails.price);
+  const txHash = await payWithAutonomousKey(secretKey, paymentDetails.payTo, amount);
   onStep({ label: `Payment submitted: ${txHash.substring(0, 12)}...`, status: 'info', data: { txHash } });
 
   // Step 3 — Wait for propagation and submit proof
