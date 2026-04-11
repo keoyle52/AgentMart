@@ -160,38 +160,51 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
   onStep({ label: `Payment submitted: ${txHash.substring(0, 12)}...`, status: 'info', data: { txHash } });
 
   // Step 3 — Wait for propagation and submit proof
-  // Facilitators usually need a few seconds for Horizon to index the tx
-  await new Promise((r) => setTimeout(r, 6000));
-  
+  // Using a universal multi-format retry strategy to handle spec variations and indexing lag.
+  const maxRetries = 5;
   let finalRes;
   let finalData;
-  const maxRetries = 3;
 
   for (let i = 0; i < maxRetries; i++) {
     onStep({ 
-      label: `Verifying proof via x402 middleware (Attempt ${i + 1}/${maxRetries})...`, 
+      label: `Verifying proof (Attempt ${i + 1}/${maxRetries})...`, 
       status: 'pending' 
     });
     
-    // Official x402 spec: PAYMENT-SIGNATURE should be a Base64-encoded JSON object containing the proof
-    // This resolves the "SyntaxError: Unexpected token" on the backend.
-    const proof = btoa(JSON.stringify({ transaction: txHash }));
+    // Attempt different spec-compliant and de-facto formats for the PAYMENT-SIGNATURE header
+    let proof;
+    if (i === 0) {
+      proof = btoa(JSON.stringify({ transaction: txHash })); // 1. Official Base64 JSON (Proof object)
+    } else if (i === 1) {
+      proof = JSON.stringify({ transaction: txHash });      // 2. Raw JSON string (Proof object)
+    } else if (i === 2) {
+      proof = btoa(JSON.stringify({ signature: txHash }));   // 3. Alternate JSON key (Signature)
+    } else if (i === 3) {
+      proof = btoa(txHash);                                  // 4. Base64-encoded raw hash
+    } else {
+      proof = txHash;                                        // 5. Raw hash fallback
+    }
 
-    finalRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'PAYMENT-SIGNATURE': proof
-      },
-      body: JSON.stringify({ agentId, txHash }),
-    });
+    try {
+      finalRes = await fetch(`${BACKEND_URL}/api/agents/${agentId}/invoke`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'PAYMENT-SIGNATURE': proof
+        },
+        body: JSON.stringify({ agentId, txHash }),
+      });
 
-    finalData = await finalRes.json().catch(() => ({}));
-    if (finalRes.ok) break;
+      finalData = await finalRes.json().catch(() => ({}));
+      if (finalRes.ok) break;
+    } catch (err) {
+      console.warn('Verification attempt network error:', err);
+    }
     
     if (i < maxRetries - 1) {
-      onStep({ label: `Retrying in 5s (Horizon indexing lag)...`, status: 'warning' });
-      await new Promise((r) => setTimeout(r, 5000));
+      const nextWait = 5000 + (i * 1000); // 5s, 6s, 7s... total ~30s window
+      onStep({ label: `Format Mode ${i+1} failed. Next retry in ${nextWait/1000}s...`, status: 'warning' });
+      await new Promise((r) => setTimeout(r, nextWait));
     }
   }
 
