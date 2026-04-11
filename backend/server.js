@@ -218,13 +218,27 @@ Object.values(AGENTS).forEach(agent => {
 
 // 1. Core Resource Server
 const ResourceServer = new x402ResourceServer([facilitatorClient]);
-ResourceServer.register(x402NetworkIdentifier, new ExactStellarScheme());
+
+// Register Stellar scheme with a custom money parser to support XLM (native) instead of USDC
+const stellarScheme = new ExactStellarScheme();
+stellarScheme.registerMoneyParser(async (amount) => {
+  // Convert standard decimal (e.g. 0.001) to Stellar stroops (7 decimals)
+  const stroops = (parseFloat(amount) * 1e7).toFixed(0);
+  return {
+    amount: stroops,
+    asset: 'native', // XLM
+    extra: {}
+  };
+});
+
+ResourceServer.register(x402NetworkIdentifier, stellarScheme);
 
 // 2. HTTP Adapter
 const httpServer = new x402HTTPResourceServer(ResourceServer, x402Routes);
 
 // 3. Manual Resilient Middleware (Prevents 500 crashes during warming up)
 let isX402Initialized = false;
+let x402InitError = null;
 
 const x402Middleware = async (req, res, next) => {
   // If protocol isn't ready yet, return a friendly warming up status instead of crashing
@@ -277,10 +291,12 @@ async function initializeX402() {
   try {
     await httpServer.initialize();
     isX402Initialized = true;
+    x402InitError = null;
     console.log('✅ x402 Protocol synchronized and ready.');
   } catch (err) {
-    console.error(`❌ x402 Initialization failed (retrying in 15s): ${err.message}`);
-    setTimeout(initializeX402, 15000);
+    x402InitError = err.message;
+    console.error(`❌ x402 Initialization failed (retrying in 5s): ${err.message}`);
+    setTimeout(initializeX402, 5000); // Faster retry (5s) for better recovery
   }
 }
 initializeX402();
@@ -487,6 +503,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     network: STELLAR_NETWORK,
     x402Initialized: isX402Initialized,
+    error: x402InitError,
     timestamp: new Date().toISOString()
   });
 });
