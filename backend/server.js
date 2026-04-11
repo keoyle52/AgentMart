@@ -264,7 +264,10 @@ const facilitatorClient = new HTTPFacilitatorClient({
 
 // 2. Official x402 Stack Initialization (Official mapping)
 const x402Server = new x402ResourceServer([facilitatorClient]);
-x402Server.register(x402NetworkIdentifier, new ExactStellarScheme());
+
+// CRITICAL: Point the scheme to the correct Horizon server for verification
+const horizonUrl = STELLAR_NETWORK === 'PUBLIC' ? 'https://horizon.stellar.org' : 'https://horizon-testnet.stellar.org';
+x402Server.register(x402NetworkIdentifier, new ExactStellarScheme({ horizonUrl }));
 
 // Rotaları (routes) burada HTTP sunucusuna bağlıyoruz
 const httpServer = new x402HTTPResourceServer(x402Server, x402Routes);

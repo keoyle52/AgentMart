@@ -177,7 +177,7 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
       txHash,
       explorerUrl: `https://stellar.expert/explorer/${STELLAR_NETWORK === 'PUBLIC' ? 'public' : 'testnet'}/tx/${txHash}`,
       result: finalData.result,
-      protocol: 'x402',
+      priceUSDC: '0.001',
     },
   });
 
