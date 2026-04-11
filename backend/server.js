@@ -218,7 +218,7 @@ app.use((req, _res, next) => {
 
 // x402 Middleware Configuration
 const x402Routes = {};
-const USDC_ASSET = 'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
+const USDC_ASSET = 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75';
 
 Object.values(AGENTS).forEach(agent => {
   if (agent.protocol === 'x402') {

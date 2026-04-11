@@ -5,7 +5,9 @@ import {
   Keypair, 
   Asset, 
   Horizon,
-  Memo
+  Address,
+  nativeToScVal,
+  xdr
 } from '@stellar/stellar-sdk';
 
 const BASE_FEE = '100'; // Default base fee
@@ -21,52 +23,91 @@ const networkPassphrase = Networks.PUBLIC;
 const server = new Horizon.Server(horizonUrl);
 
 // Official USDC Asset on Stellar Mainnet (Circle)
-const USDC_ASSET = new Asset(
-  'USDC', 
-  'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN'
-);
+// Official USDC Soroban Contract ID on Stellar Mainnet
+const USDC_ASSET = 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75';
 
 // Wallet — Autonomous (secret-key) mode only
 
 // Low-level payment builders
 
-async function buildPaymentTx(sourcePublicKey, destinationAddress, amountUSDC, memoText) {
-  const account = await server.loadAccount(sourcePublicKey);
+/**
+ * Builds a Soroban Transaction for USDC transfer (Managed Relay Compliance).
+ * Does NOT sign the transaction envelope.
+ */
+async function buildSorobanTransferTx(secretKey, destination, amountUSDC) {
+  const sourceKeypair = Keypair.fromSecret(secretKey);
+  const from = sourceKeypair.publicKey();
+  const account = await server.loadAccount(from);
+
+  // Fetch current ledger for expiration offset
+  let currentLedger = 0;
+  try {
+    const root = await fetch(`${horizonUrl}`).then(r => r.json());
+    currentLedger = root.core_latest_ledger;
+  } catch (e) {
+    console.warn('Failed to fetch ledger, using fallback', e);
+    currentLedger = 50000000; // Fallback
+  }
+  const expiredLedger = currentLedger + 15;
+
+  // 1. Format Arguments as ScVals (Stellar Asset Contract 'transfer' spec)
+  // USDC uses 7 decimals (same as XLM), but Soroban i128 expects stroops.
+  const amountStroops = BigInt(Math.round(parseFloat(amountUSDC) * 10000000));
+  const args = [
+    nativeToScVal(Address.fromString(from)),
+    nativeToScVal(Address.fromString(destination)),
+    nativeToScVal(amountStroops, { type: 'i128' })
+  ];
+
+  // 2. Build the Host Function Operation
+  const op = Operation.invokeHostFunction({
+    func: xdr.HostFunction.hostFunctionTypeInvokeContract(
+      new xdr.InvokeContractArgs({
+        contractAddress: Address.fromString(USDC_ASSET).toScAddress(),
+        functionName: 'transfer',
+        args
+      })
+    ),
+    auth: [] // Will attach signed auth entry below
+  });
+
+  // 3. Construct and Sign Authorization Entry (The 'Sponsored' Sign-off)
+  const authEntry = TransactionBuilder.authorizeEntry(
+    op.func().invokeContract().contractAddress(),
+    op.func().invokeContract().functionName(),
+    op.func().invokeContract().args(),
+    expiredLedger,
+    { source: from, networkPassphrase }
+  );
+
+  // sign the auth entry hash
+  const signature = sourceKeypair.sign(authEntry.toXDR());
+  authEntry.credentials().address().signature(xdr.ScVal.scvBytes(signature));
+
+  // Attach signed auth entry to operation
+  op.auth = [authEntry];
+
+  // 4. Build Final Transaction (Unsigned Envelope)
   return new TransactionBuilder(account, {
-    fee: await server.fetchBaseFee(),
+    fee: '100000', // Sponsored fee buffer
     networkPassphrase,
   })
-    .addOperation(
-      Operation.payment({
-        destination: destinationAddress,
-        asset: USDC_ASSET,
-        amount: amountUSDC.toString(),
-      })
-    )
-    .addMemo(Memo.text(memoText || 'x402:agentmart'))
-    .setTimeout(30)
+    .addOperation(op)
+    .setTimeout(120)
     .build();
 }
 
-async function payWithAutonomousKey(secretKey, destinationAddress, amountUSDC, memoText) {
-  const sourceKeypair = Keypair.fromSecret(secretKey);
-  const tx = await buildPaymentTx(sourceKeypair.publicKey(), destinationAddress, amountUSDC, memoText);
-  tx.sign(sourceKeypair);
+async function payWithAutonomousKey(secretKey, destinationAddress, amountUSDC) {
+  const tx = await buildSorobanTransferTx(secretKey, destinationAddress, amountUSDC);
   
-  try {
-    const response = await server.submitTransaction(tx);
-    return response.hash;
-  } catch (error) {
-    // Extract detailed Stellar error codes from Horizon's response
-    const codes = error.response?.data?.extras?.result_codes;
-    if (codes) {
-      const opErrors = codes.operations ? codes.operations.join(', ') : '';
-      const txError = codes.transaction || '';
-      const detailedMsg = opErrors ? `${txError} -> ${opErrors}` : txError;
-      throw new Error(`Stellar Horizon Error: ${detailedMsg}`);
-    }
-    throw error;
-  }
+  // NOTE: Per Relayer rules, we do NOT call tx.sign(). 
+  // The signature is inside the auth entry.
+  
+  // We return the XDR and Hash for the relayer and UI
+  return {
+    xdr: tx.toXDR(),
+    hash: tx.hash().toString('hex')
+  };
 }
 
 /**
@@ -132,27 +173,24 @@ export async function invokeAgentX402(agentId, publicKey, secretKey, onStep) {
 
   onStep({ label: `x402 Handshake: Payment of ${priceValue} USDC requested`, status: 'info' });
 
-  // Step 2 — Pay on-chain
-  onStep({ label: `Submitting payment to ${accepted.payTo.substring(0, 8)}...`, status: 'pending' });
+  // Step 2 — Pay on-chain (Soroban Native)
+  onStep({ label: `Preparing signed Soroban authorization...`, status: 'pending' });
   
-  // Extract payment ID for memo or generate fallback
-  const paymentId = accepted.id || accepted.paymentId || Math.random().toString(36).slice(2, 10);
-  
-  const txHash = await payWithAutonomousKey(secretKey, accepted.payTo, priceValue, paymentId);
-  onStep({ label: `Payment submitted: ${txHash.substring(0, 12)}...`, status: 'info', data: { txHash } });
+  const { xdr: txXdr, hash: txHash } = await payWithAutonomousKey(secretKey, accepted.payTo, priceValue);
+  onStep({ label: `Soroban proof generated.`, status: 'info', data: { txHash } });
 
   // Step 3 — Submit official proof
-  onStep({ label: `Waiting for facilitator to index (15s)...`, status: 'pending' });
+  onStep({ label: `Waiting for relayer indexing (15s)...`, status: 'pending' });
   await new Promise(r => setTimeout(r, 15000));
   
-  onStep({ label: `Verifying payment proof...`, status: 'pending' });
+  onStep({ label: `Submitting Soroban XDR to relayer...`, status: 'pending' });
   
   // Official x402 v2 Proof Format: base64(JSON({ x402Version, accepted, proof }))
   accepted.network = 'stellar:pubnet';
   const paymentPayload = {
     x402Version: 2,
     accepted: accepted,
-    proof: { transactionHash: txHash }
+    proof: { transaction: txXdr }
   };
   const signature = btoa(JSON.stringify(paymentPayload));
 
