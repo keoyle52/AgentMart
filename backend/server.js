@@ -4,8 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Horizon, Networks } from '@stellar/stellar-sdk';
 import 'dotenv/config';
 import fetch from 'node-fetch';
-import { HTTPFacilitatorClient } from '@x402/core/server';
-import { paymentMiddlewareFromConfig } from '@x402/express';
+import { HTTPFacilitatorClient, x402ResourceServer, x402HTTPResourceServer } from '@x402/core/server';
+import { paymentMiddlewareFromHTTPServer } from '@x402/express';
 import { ExactStellarScheme } from '@x402/stellar/exact/server';
 
 // Global fetch polyfill for Node versions < 18
@@ -216,14 +216,35 @@ Object.values(AGENTS).forEach(agent => {
   }
 });
 
-const x402Middleware = paymentMiddlewareFromConfig(
-  x402Routes,
-  [facilitatorClient],
-  [{ network: x402NetworkIdentifier, server: new ExactStellarScheme() }],
-  {}, 
-  null, 
-  true // Re-enabled syncFacilitatorOnStart for proper initialization
+// 1. Core Resource Server
+const ResourceServer = new x402ResourceServer([facilitatorClient]);
+ResourceServer.register(x402NetworkIdentifier, new ExactStellarScheme());
+
+// 2. HTTP Adapter
+const httpServer = new x402HTTPResourceServer(ResourceServer, x402Routes);
+
+// 3. Resilient Middleware (Disabling startup crash)
+const x402Middleware = paymentMiddlewareFromHTTPServer(
+  httpServer,
+  {},    // paywallConfig
+  null,  // paywall
+  false  // syncFacilitatorOnStart = false (KEY: prevents process-level crash)
 );
+
+// 4. Manual Background Initialization (Retry until success, never throw)
+let isX402Initialized = false;
+async function initializeX402() {
+  console.log('🔄 Initializing x402 protocol in background...');
+  try {
+    await httpServer.initialize();
+    isX402Initialized = true;
+    console.log('✅ x402 Protocol synchronized and ready.');
+  } catch (err) {
+    console.error(`❌ x402 Initialization failed (retrying in 30s): ${err.message}`);
+    setTimeout(initializeX402, 30000); // Retry after 30 seconds
+  }
+}
+initializeX402();
 
 // Apply x402 protection
 app.use(x402Middleware);
@@ -421,7 +442,17 @@ app.get('/api/mpp/session/:sessionId', (req, res) => {
   res.json(session);
 });
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    network: STELLAR_NETWORK,
+    x402Initialized: isX402Initialized,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT} - Network: ${STELLAR_NETWORK}`);
+  console.log(`🚀 AgentMart Backend alive on port ${PORT} - Network: ${STELLAR_NETWORK}`);
 });
