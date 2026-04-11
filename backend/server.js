@@ -34,13 +34,17 @@ console.log(`[Config] API Key: ${X402_FACILITATOR_API_KEY ? X402_FACILITATOR_API
 const facilitatorClient = new HTTPFacilitatorClient({
   url: X402_FACILITATOR_URL,
   createAuthHeaders: async () => {
-    if (!process.env.X402_FACILITATOR_API_KEY) {
-      throw new Error('401 Unauthorized: X402_FACILITATOR_API_KEY is missing in environment variables.');
+    const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
+    if (!apiKey) {
+      throw new Error('401 Unauthorized: X402_FACILITATOR_API_KEY is missing.');
     }
+    // The facilitator client expects endpoint-specific auth headers
+    const authHeader = { Authorization: `Bearer ${apiKey}` };
     return {
-      headers: {
-        Authorization: `Bearer ${process.env.X402_FACILITATOR_API_KEY}`,
-      },
+      supported: authHeader,
+      verify: authHeader,
+      settle: authHeader,
+      list: authHeader,
     };
   },
 });
