@@ -215,7 +215,9 @@ const AGENTS = {
 };
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  exposedHeaders: ['PAYMENT-REQUIRED']
+}));
 app.use(express.json());
 
 // Health check endpoint (STAY ABOVE MIDDLEWARE to avoid crashes during warming up)
