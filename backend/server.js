@@ -242,11 +242,10 @@ Object.values(AGENTS).forEach(agent => {
 const facilitatorClient = new HTTPFacilitatorClient({
   url: X402_FACILITATOR_URL,
   createAuthHeaders: async () => {
-    const apiKey = (process.env.X402_FACILITATOR_API_KEY || '').trim();
+    // Standard x402 v2 resilient auth headers
     return { 
-      'Authorization': `Bearer ${apiKey}`,
-      'X-API-Key': apiKey,
-      'Content-Type': 'application/json'
+      'Authorization': `Bearer ${X402_FACILITATOR_API_KEY}`,
+      'X-API-Key': X402_FACILITATOR_API_KEY
     };
   }
 });
@@ -267,7 +266,11 @@ httpServer.initialize()
   })
   .catch(err => {
     x402InitError = err.message;
-    console.error('❌ x402 Protocol Initialization Failed:', err);
+    console.error('❌ x402 Protocol Initialization Failed (Check your X402_FACILITATOR_API_KEY):');
+    console.error(`   Error Detail: ${err.message}`);
+    if (err.message.includes('401')) {
+      console.error('   Hint: Your Facilitator API Key was rejected (Unauthorized). Please verify it in your environment variables.');
+    }
   });
 
 const x402Middleware = async (req, res, next) => {
